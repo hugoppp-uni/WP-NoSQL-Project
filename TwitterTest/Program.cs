@@ -1,43 +1,67 @@
-﻿using System.Diagnostics;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Tweetinvi;
+using Tweetinvi.Core.Extensions;
 using Tweetinvi.Models;
 using Tweetinvi.Parameters.V2;
 using Tweetinvi.Streaming.V2;
+using TwitterTest;
 
 var config = new ConfigurationBuilder()
     .AddEnvironmentVariables()
     .Build();
 
-var userClient =
-    new TwitterClient(new ReadOnlyConsumerCredentials(config["consumerKey"], config["consumerSecret"], config["bearerToken"]));
+var userClient = new TwitterClient(CreateCredentials(config));
+
 
 ISampleStreamV2 sampleStreamV2 = userClient.StreamsV2.CreateSampleStream();
 
-int tweets = 0;
-int events = 0;
+Stats stats = new();
+TweetLanguageAnalyzer tweetLanguageAnalyzer = new();
+TweetFilter filter = new TweetFilter().AllowLanguage("de", "en");
 
 sampleStreamV2.TweetReceived += (_, x) =>
 {
-    // Tweet tweet = new Tweet(x.Tweet); 
-    tweets++;
-};
-sampleStreamV2.EventReceived += (_, x) => events++;
+    if (x.Tweet is null)
+        return;
 
-// Console.WriteLine("started stream");
-Stopwatch sw = Stopwatch.StartNew();
+    tweetLanguageAnalyzer.AddTweet(x.Tweet);
+    stats.TotalTweetCount++;
+    if (filter.TweetShouldBeIgnored(x.Tweet))
+        return;
+
+    stats.FilteredTweetCount++;
+};
 
 //do not await here, as the task completes when the stream ends
 _ = sampleStreamV2.StartAsync(new StartSampleStreamV2Parameters());
 
 while (true)
 {
-    await Task.Delay(5000);
-    float elapsedSeconds = sw.ElapsedMilliseconds / 1000f;
-    Console.WriteLine($"[TWEET] {tweets} ({tweets / elapsedSeconds}/s)");
-    Console.WriteLine($"[EVENT] {events} ({events / elapsedSeconds}/s)");
+    int lastFilteredTweetCount = stats.FilteredTweetCount;
+    int lastTotalTweetCount = stats.TotalTweetCount;
+
+
+    const int millisecondsDelay = 5000;
+    await Task.Delay(millisecondsDelay);
+
+    Console.WriteLine($"[Total] {stats.TotalTweetCount} ({(stats.TotalTweetCount - lastTotalTweetCount) / (millisecondsDelay / 1000d)}/s)");
+    Console.WriteLine(
+        $"[Filtered] {stats.FilteredTweetCount} ({(stats.FilteredTweetCount - lastFilteredTweetCount) / (millisecondsDelay / 1000d)}/s)");
+
+    tweetLanguageAnalyzer
+        .TweetsPerLanguageString()
+        .Take(10)
+        .ForEach(Console.WriteLine);
+
     Console.WriteLine();
-    tweets = 0;
-    events = 0;
-    sw.Restart();
+}
+
+static IReadOnlyConsumerCredentials CreateCredentials(IConfiguration config)
+{
+    string bearerToken = config["TWITTER_BEARER_TOKEN"] ?? throw new InvalidOperationException($"Configuration is missing bearerToken");
+    string consumerSecret = config["TWITTER_CONSUMER_SECRET"] ??
+                            throw new InvalidOperationException($"Configuration is missing consumerSecret");
+    string consumerKey = config["TWITTER_CONSUMER_KEY"] ?? throw new InvalidOperationException($"Configuration is missing consumerKey");
+
+    return new ReadOnlyConsumerCredentials(consumerKey, consumerSecret, bearerToken);
 }

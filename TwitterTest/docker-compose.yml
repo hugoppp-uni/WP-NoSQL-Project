@@ -15,9 +15,9 @@ services:
   twitter_stream_app:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - consumerKey=${TWITTER_CONSUMER_KEY}
-      - consumerSecret=${TWITTER_CONSUMER_SECRET}
-      - bearerToken=${TWITTER_BEARER_TOKEN}
+      - TWITTER_CONSUMER_KEY=${TWITTER_CONSUMER_KEY}
+      - TWITTER_CONSUMER_SECRET=${TWITTER_CONSUMER_SECRET}
+      - TWITTER_BEARER_TOKEN=${TWITTER_BEARER_TOKEN}
     build:
       dockerfile:
         TwitterTest/Dockerfile
