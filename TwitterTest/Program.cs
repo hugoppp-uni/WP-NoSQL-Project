@@ -1,17 +1,12 @@
-﻿using System;
-using System.Diagnostics;
-using System.Reflection;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Tweetinvi;
 using Tweetinvi.Models;
 using Tweetinvi.Parameters.V2;
 using Tweetinvi.Streaming.V2;
-using TwitterTest.Model;
-
 
 var config = new ConfigurationBuilder()
-    .AddUserSecrets(Assembly.GetExecutingAssembly())
+    .AddEnvironmentVariables()
     .Build();
 
 var userClient =
@@ -31,7 +26,9 @@ sampleStreamV2.EventReceived += (_, x) => events++;
 
 // Console.WriteLine("started stream");
 Stopwatch sw = Stopwatch.StartNew();
-await sampleStreamV2.StartAsync(new StartSampleStreamV2Parameters());
+
+//do not await here, as the task completes when the stream ends
+_ = sampleStreamV2.StartAsync(new StartSampleStreamV2Parameters());
 
 while (true)
 {
@@ -44,6 +41,3 @@ while (true)
     events = 0;
     sw.Restart();
 }
-
-
-sampleStreamV2.StopStream();

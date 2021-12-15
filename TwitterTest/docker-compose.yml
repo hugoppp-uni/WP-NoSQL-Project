@@ -13,6 +13,11 @@ services:
       - "7687:7687"
       - "7474:7474"
   twitter_stream_app:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - consumerKey=${TWITTER_CONSUMER_KEY}
+      - consumerSecret=${TWITTER_CONSUMER_SECRET}
+      - bearerToken=${TWITTER_BEARER_TOKEN}
     build:
       dockerfile:
         TwitterTest/Dockerfile

@@ -1,6 +1,3 @@
-using System;
-using Tweetinvi.Models.V2;
-
 namespace TwitterTest.Model
 {
     public class Tweet
@@ -11,7 +8,7 @@ namespace TwitterTest.Model
         
         public DateTimeOffset CreatedAt  { get; set; }
         
-        public String AuthorID  { get; set; }
+        public string AuthorID  { get; set; }
 
         public Tweet(string id, string text, string language, DateTimeOffset createdAt, string authorId)
         {
