@@ -1,6 +1,6 @@
 ﻿using Tweetinvi.Models.V2;
 
-namespace TwitterTest;
+namespace TwitterTest.Services;
 
 public class TweetFilter
 {

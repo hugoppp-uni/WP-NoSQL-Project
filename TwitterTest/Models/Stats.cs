@@ -1,6 +1,6 @@
-﻿namespace TwitterTest;
+﻿namespace TwitterTest.Models;
 
-record Stats
+public record Stats
 {
     public int TotalTweetCount { get; set; }
     public int FilteredTweetCount { get; set; }
