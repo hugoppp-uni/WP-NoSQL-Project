@@ -18,7 +18,7 @@ public class Worker : BackgroundService
     private TweetLanguageAnalyzer _tweetLanguageAnalyzer;
     private ISampleStreamV2 _sampleStreamV2;
 
-    public Worker(ILogger<Worker> logger, IConfiguration config, TweetFilter tweetFilter, TweetLanguageAnalyzer tweetLanguageAnalyzer)
+    public Worker(ILogger<Worker> logger, IConfiguration config, TweetFilter tweetFilter, TweetLanguageAnalyzer tweetLanguageAnalyzer, Neo4JInserter neo4JInserter)
     {
         _logger = logger;
         _tweetLanguageAnalyzer = tweetLanguageAnalyzer;
@@ -29,7 +29,7 @@ public class Worker : BackgroundService
 
         _sampleStreamV2 = userClient.StreamsV2.CreateSampleStream();
 
-        _sampleStreamV2.TweetReceived += (_, x) =>
+        _sampleStreamV2.TweetReceived += async (_, x) =>
         {
             if (x.Tweet is null)
                 return;
@@ -38,6 +38,8 @@ public class Worker : BackgroundService
             _stats.TotalTweetCount++;
             if (tweetFilter.TweetShouldBeIgnored(x.Tweet))
                 return;
+
+            await neo4JInserter.InsertTweetAsync(x.Tweet);
 
             _stats.FilteredTweetCount++;
         };

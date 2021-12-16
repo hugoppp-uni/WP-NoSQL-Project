@@ -22,5 +22,3 @@ services:
       dockerfile:
         TwitterTest/Dockerfile
       context: ..
-    ports:
-      - "8000:80"
