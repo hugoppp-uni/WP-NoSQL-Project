@@ -80,23 +80,30 @@ public class Worker : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
+            const int millisecondsDelay = 5000;
+            _logger.LogInformation("Worker running at: {time}, tick = {}s", DateTimeOffset.Now, millisecondsDelay / 1000d);
 
             int lastFilteredTweetCount = _stats.FilteredTweetCount;
             int lastTotalTweetCount = _stats.TotalTweetCount;
 
 
-            const int millisecondsDelay = 5000;
             await Task.Delay(millisecondsDelay, stoppingToken);
 
-            _logger.LogInformation("[Total] {} ({}/s)",
-                _stats.TotalTweetCount,
-                (_stats.TotalTweetCount - lastTotalTweetCount) / (millisecondsDelay / 1000d)
-            );
-            _logger.LogInformation("[Filtered] {} ({}/s)",
-                _stats.FilteredTweetCount,
-                (_stats.FilteredTweetCount - lastFilteredTweetCount) / (millisecondsDelay / 1000d)
-            );
+            if (lastTotalTweetCount == _stats.TotalTweetCount)
+            {
+                _logger.LogWarning("[Total] {}, no new tweets added since the last tick", _stats.TotalTweetCount);
+            }
+            else
+            {
+                _logger.LogInformation("[Total] {} ({}/s)",
+                    _stats.TotalTweetCount,
+                    (_stats.TotalTweetCount - lastTotalTweetCount) / (millisecondsDelay / 1000d)
+                );
+                _logger.LogInformation("[Filtered] {} ({}/s)",
+                    _stats.FilteredTweetCount,
+                    (_stats.FilteredTweetCount - lastFilteredTweetCount) / (millisecondsDelay / 1000d)
+                );
+            }
         }
 
         _sampleStreamV2.StopStream();
