@@ -22,7 +22,7 @@ public class Neo4JInserter
     {
         try
         {
-            await InsertHashTags(tweetV2);
+            await Insert(tweetV2);
         }
         catch (Exception e)
         {
@@ -30,14 +30,24 @@ public class Neo4JInserter
         }
     }
 
-    private async Task InsertHashTags(TweetV2 tweetV2)
+    private async Task Insert(TweetV2 tweetV2)
     {
-        HashtagV2[] hashtags = tweetV2.Entities.Hashtags;
         if (tweetV2.ReferencedTweets?.Any(x => x.Type == "retweeted") ?? false)
             return;
-        if (hashtags is null)
+        if (tweetV2.Entities?.Hashtags is null)
             return;
 
+
+        await InsertTweet(tweetV2);
+
+        await InsertAnnotations(tweetV2);
+
+        await InsertHashtags(tweetV2);
+    }
+
+    private async Task InsertHashtags(TweetV2 tweetV2)
+    {
+        var hashtags = tweetV2.Entities.Hashtags;
         var uniqueHashtags = hashtags
             .GroupBy(x => x.Tag)
             .Select(x => new { Name = x.Key, Count = x.Count() })
@@ -45,21 +55,14 @@ public class Neo4JInserter
 
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            string hashtagsString =
-                string.Join(", ",
+            string hashtagsString = string.Join(", ",
                     uniqueHashtags
                         .OrderByDescending(x => x.Count)
                         .Select(x => $"{x.Name} ({x.Count})")
                 );
-            _logger.LogInformation("adding hashtags: {}", hashtagsString);
+            _logger.LogTrace("adding hashtags: {}", hashtagsString);
         }
 
-        await _graphClient.Cypher
-            .Create("(:Tweet {id:$p_id, text:$p_text, lang:$p_lang})")
-            .WithParams(new { p_id = tweetV2.Id, p_text = tweetV2.Text, p_lang = tweetV2.Lang})
-            .ExecuteWithoutResultsAsync();
-
-        var annotationEntities = tweetV2.GetDistinctContextAnnotationEntities().ToArray();
         foreach (var hashtag in uniqueHashtags)
         {
             await _graphClient.Cypher
@@ -71,40 +74,39 @@ public class Neo4JInserter
                 .WithParams(new { p_tweetId = tweetV2.Id })
                 .Create("(n) -[:USED_IN]-> (tweet)")
                 .ExecuteWithoutResultsAsync();
-
-            foreach (TweetContextAnnotationEntityV2 annotationEntity in annotationEntities)
-            {
-                await _graphClient.Cypher
-                    .Match("(hashtag:Hashtag {name: $p_hashtag})")
-                    .WithParam("p_hashtag", hashtag.Name)
-                    .Merge("(entity:AnnotationEntity {name: $p_name})")
-                    .OnCreate().Set("entity.count = 1")
-                    .OnMatch().Set("entity.count = entity.count + 1")
-                    .WithParam("p_name", annotationEntity.Name)
-                    .Create("(entity)<-[:HAS_ENTITY]-(hashtag)")
-                    .ExecuteWithoutResultsAsync();
-            }
         }
+    }
 
+    private async Task InsertAnnotations(TweetV2 tweetV2)
+    {
+        var annotationEntities = tweetV2.GetDistinctContextAnnotationEntities().ToArray();
 
-        var kCombinations = uniqueHashtags.Select(x => x.Name).GetKCombinations(2);
-
-        foreach (string[] kCombination in kCombinations.Select(x => x.ToArray()))
+        foreach (TweetContextAnnotationEntityV2 annotationEntity in annotationEntities)
         {
-            // _logger.LogInformation("Adding '{}' -> '{}'", kCombination[0], kCombination[1]);
             await _graphClient.Cypher
-                .Match("(n0:Hashtag {name: $p_name0})")
-                .WithParam("p_name0", kCombination[0])
-                .Match("(n1:Hashtag {name: $p_name1})")
-                .WithParam("p_name1", kCombination[1])
-                .Merge("(n0)-[r:RELATES {" +
-                       "day: date($p_date)" +
-                       "} ]-(n1)")
-                .WithParam("p_date", tweetV2.CreatedAt.Date.ToString("yyyy-MM-dd"))
-                .OnCreate().Set("r.count = 1")
-                .OnMatch().Set("r.count = r.count + 1")
+                .Match("(tweet:Tweet {id: $p_tweetId})")
+                .WithParam("p_tweetId", tweetV2.Id)
+                .Merge("(entity:AnnotationEntity {name: $p_name})")
+                .WithParam("p_name", annotationEntity.Name)
+                .OnCreate().Set("entity.count = 1")
+                .OnMatch().Set("entity.count = entity.count + 1")
+                .Create("(entity)-[:MENTIONED_IN]->(tweet)")
                 .ExecuteWithoutResultsAsync();
         }
+    }
+
+    private async Task InsertTweet(TweetV2 tweetV2)
+    {
+        await _graphClient.Cypher
+            .Create("(:Tweet {id:$p_id, text:$p_text, lang:$p_lang, date:date($p_date)})")
+            .WithParams(new
+            {
+                p_id = tweetV2.Id,
+                p_text = tweetV2.Text,
+                p_lang = tweetV2.Lang,
+                p_date = tweetV2.CreatedAt.Date.ToString("yyyy-MM-dd")
+            })
+            .ExecuteWithoutResultsAsync();
     }
 
 
