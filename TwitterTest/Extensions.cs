@@ -15,16 +15,16 @@ public static class Extensions
     }
 
 
-    public static IEnumerable<TweetContextAnnotationEntityV2> GetDistinctContextAnnotationEntities(this TweetV2 tweetV2)
+    public static IEnumerable<TweetContextAnnotationV2> GetDistinctContextAnnotationEntities(this TweetV2 tweetV2)
     {
         if (tweetV2.ContextAnnotations is null)
         {
-            return Enumerable.Empty<TweetContextAnnotationEntityV2>();
+            return Enumerable.Empty<TweetContextAnnotationV2>();
         }
 
-        return tweetV2.ContextAnnotations
-            .DistinctBy(x => x.Entity.Id)
-            .Select(x => x.Entity);
+        return tweetV2.ContextAnnotations;
+            // .DistinctBy(x => x.Entity.Id)
+            // .Select(x => x.Entity);
     }
 
 }

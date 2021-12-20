@@ -78,24 +78,45 @@ public class Neo4JInserter
     {
         var annotationEntities = tweetV2.GetDistinctContextAnnotationEntities().ToArray();
 
-        foreach (TweetContextAnnotationEntityV2 annotationEntity in annotationEntities)
+        foreach (var annotation in annotationEntities)
         {
+            await InsertAnnotationDomain(annotation.Domain);
+            await InsertAnnotationsEntity(annotation.Entity);
+
             await _graphClient.Cypher
-                .Match("(tweet:Tweet {id: $p_tweetId})")
-                .WithParam("p_tweetId", tweetV2.Id)
-                .Merge("(entity:AnnotationEntity {" +
-                       "name: $p_name," +
-                       "description: $p_description})")
-                .WithParams(new
-                {
-                    p_name = annotationEntity.Name,
-                    p_description = annotationEntity.Description ?? "",
-                })
-                .OnCreate().Set("entity.count = 1")
-                .OnMatch().Set("entity.count = entity.count + 1")
+                .Match("(tweet:Tweet {id: $p_tweetId})").WithParam("p_tweetId", tweetV2.Id)
+                .Match("(domain:Domain {id: $p_domainId})").WithParam("p_domainId", annotation.Domain.Id)
+                .Match("(entity:Entity {name: $p_entityName})").WithParam("p_entityName", annotation.Entity.Name)
                 .Create("(entity)-[:MENTIONED_IN]->(tweet)")
+                .Merge("(entity)-[r:HAS_DOMAIN]->(domain)")
                 .ExecuteWithoutResultsAsync();
         }
+    }
+
+    private async Task InsertAnnotationsEntity(TweetContextAnnotationEntityV2 annotationEntity)
+    {
+        await _graphClient.Cypher
+            .Merge("(e:Entity {name: $p_name})")
+            .WithParams(new
+            {
+                p_id = annotationEntity.Id,
+                p_name = annotationEntity.Name,
+            })
+            .ExecuteWithoutResultsAsync();
+    }
+
+    private Task InsertAnnotationDomain(TweetContextAnnotationDomainV2 domain)
+    {
+        return _graphClient.Cypher
+            .Merge("(d:Domain {id: $p_id})")
+            .OnCreate().Set("d.name = $p_name, d.description = $p_description")
+            .WithParams(new
+            {
+                p_name = domain.Name ?? "",
+                p_description = domain.Description ?? "",
+                p_id = domain.Id,
+            })
+            .ExecuteWithoutResultsAsync();
     }
 
     private async Task InsertTweet(TweetV2 tweetV2)
