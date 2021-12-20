@@ -1,3 +1,4 @@
+using System.Buffers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -26,7 +27,14 @@ await host.RunAsync();
 
 async Task<GraphClient> ConnectToNeo4JAsync()
 {
-    GraphClient client = new GraphClient(new Uri("http://localhost:7474"), "neo4j","twitter");
-    await client.ConnectAsync();
-    return client;
+    try
+    {
+        GraphClient client = new GraphClient(new Uri("http://localhost:7474"), "neo4j","twitter");
+        await client.ConnectAsync();
+        return client;
+    }
+    catch (Exception e)
+    {
+        throw new InvalidOperationException("Could not connect to neo4j", e);
+    }
 }

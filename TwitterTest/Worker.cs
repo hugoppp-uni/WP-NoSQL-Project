@@ -2,7 +2,9 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Tweetinvi;
+using Tweetinvi.Core.Iterators;
 using Tweetinvi.Models;
+using Tweetinvi.Models.V2;
 using Tweetinvi.Parameters.V2;
 using Tweetinvi.Streaming.V2;
 using TwitterTest.Models;
@@ -18,7 +20,10 @@ public class Worker : BackgroundService
     private TweetLanguageAnalyzer _tweetLanguageAnalyzer;
     private ISampleStreamV2 _sampleStreamV2;
 
-    public Worker(ILogger<Worker> logger, IConfiguration config, TweetFilter tweetFilter, TweetLanguageAnalyzer tweetLanguageAnalyzer, Neo4JInserter neo4JInserter)
+    private HashSet<long> _threads = new();
+
+    public Worker(ILogger<Worker> logger, IConfiguration config, TweetFilter tweetFilter, TweetLanguageAnalyzer tweetLanguageAnalyzer,
+        Neo4JInserter neo4JInserter)
     {
         _logger = logger;
         _tweetLanguageAnalyzer = tweetLanguageAnalyzer;
@@ -29,22 +34,43 @@ public class Worker : BackgroundService
 
         _sampleStreamV2 = userClient.StreamsV2.CreateSampleStream();
 
-        _sampleStreamV2.TweetReceived += async (_, x) =>
+        _sampleStreamV2.TweetReceived += (_, x) =>
         {
             if (x.Tweet is null)
                 return;
 
+            _threads.Add(Thread.CurrentThread.ManagedThreadId);
             tweetLanguageAnalyzer.AddTweet(x.Tweet);
             _stats.TotalTweetCount++;
             if (tweetFilter.TweetShouldBeIgnored(x.Tweet))
                 return;
 
-            await neo4JInserter.InsertTweetAsync(x.Tweet);
+            lock (this)
+                neo4JInserter.InsertTweetAsync(x.Tweet).Wait();
 
             _stats.FilteredTweetCount++;
         };
 
-        _sampleStreamV2.StartAsync(new StartSampleStreamV2Parameters());
+        _sampleStreamV2.StartAsync(new StartSampleStreamV2Parameters()
+        {
+            // Expansions =
+            // {
+            //     TweetResponseFields.Expansions.AuthorId,
+            //     TweetResponseFields.Expansions.ReferencedTweetsId,
+            //     TweetResponseFields.Expansions.InReplyToUserId,
+            // },
+            // TweetFields =
+            // {
+            //     TweetResponseFields.Tweet.AuthorId,
+            //     TweetResponseFields.Tweet.ReferencedTweets,
+            //     TweetResponseFields.Tweet.Id,
+            //     TweetResponseFields.Tweet.Text,
+            //     TweetResponseFields.Tweet.Lang,
+            //     TweetResponseFields.Tweet.CreatedAt,
+            //     TweetResponseFields.Tweet.Entities,
+            //     TweetResponseFields.Tweet.,
+            // }
+        });
     }
 
 
