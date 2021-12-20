@@ -2,7 +2,9 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Tweetinvi;
+using Tweetinvi.Core.Iterators;
 using Tweetinvi.Models;
+using Tweetinvi.Models.V2;
 using Tweetinvi.Parameters.V2;
 using Tweetinvi.Streaming.V2;
 using TwitterTest.Models;
@@ -18,7 +20,8 @@ public class Worker : BackgroundService
     private TweetLanguageAnalyzer _tweetLanguageAnalyzer;
     private ISampleStreamV2 _sampleStreamV2;
 
-    public Worker(ILogger<Worker> logger, IConfiguration config, TweetFilter tweetFilter, TweetLanguageAnalyzer tweetLanguageAnalyzer, Neo4JInserter neo4JInserter)
+    public Worker(ILogger<Worker> logger, IConfiguration config, TweetFilter tweetFilter, TweetLanguageAnalyzer tweetLanguageAnalyzer,
+        Neo4JInserter neo4JInserter)
     {
         _logger = logger;
         _tweetLanguageAnalyzer = tweetLanguageAnalyzer;

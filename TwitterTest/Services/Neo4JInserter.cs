@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Neo4jClient;
+using Tweetinvi.Core.Events;
+using Tweetinvi.Core.Extensions;
 using Tweetinvi.Models.V2;
 
 namespace TwitterTest.Services;
@@ -30,21 +32,44 @@ public class Neo4JInserter
     private async Task InsertHashTags(TweetV2 tweetV2)
     {
         HashtagV2[] hashtags = tweetV2.Entities.Hashtags;
+        if (tweetV2.ReferencedTweets?.Any(x => x.Type == "retweeted") ?? false)
+            return;
         if (hashtags is null)
             return;
+
 
         var uniqueHashtags = hashtags
             .GroupBy(x => x.Tag)
             .Select(x => new { Name = x.Key, Count = x.Count() })
             .ToArray();
 
+        if (_logger.IsEnabled(LogLevel.Information))
+        {
+            string hashtagsString =
+                string.Join(", ",
+                    uniqueHashtags
+                        .OrderByDescending(x => x.Count)
+                        .Select(x => $"{x.Name} ({x.Count})")
+                );
+            _logger.LogInformation("adding hashtags: {}", hashtagsString);
+        }
+
+        await _graphClient.Cypher
+            .Create("(:Tweet {id:$p_id, text:$p_text})")
+            .WithParams(new { p_id = tweetV2.Id, p_text = tweetV2.Text })
+            .ExecuteWithoutResultsAsync();
+
+
         foreach (var hashtag in uniqueHashtags)
         {
             await _graphClient.Cypher
+                .Match("(tweet:Tweet {id: $p_tweetId} )")
                 .Merge("(n:Hashtag {name: $p_name})")
                 .WithParam("p_name", hashtag.Name)
                 .OnCreate().Set($"n.count = {hashtag.Count}")
                 .OnMatch().Set($"n.count = n.count + {hashtag.Count}")
+                .WithParams(new {p_tweetId = tweetV2.Id})
+                .Create("(n) -[:USED_IN]-> (tweet)")
                 .ExecuteWithoutResultsAsync();
         }
 
@@ -53,16 +78,20 @@ public class Neo4JInserter
 
         foreach (string[] kCombination in kCombinations.Select(x => x.ToArray()))
         {
-            _logger.LogInformation("Adding '{}' -> '{}'", kCombination[0], kCombination[1]);
+            // _logger.LogInformation("Adding '{}' -> '{}'", kCombination[0], kCombination[1]);
             await _graphClient.Cypher
                 .Match("(n0:Hashtag {name: $p_name0})")
                 .WithParam("p_name0", kCombination[0])
                 .Match("(n1:Hashtag {name: $p_name1})")
                 .WithParam("p_name1", kCombination[1])
-                .Merge("(n0)-[r:RELATES]-(n1)")
+                .Merge("(n0)-[r:RELATES {" +
+                       "day: date($p_date)" +
+                       "} ]-(n1)")
+                .WithParam("p_date", tweetV2.CreatedAt.Date.ToString("yyyy-MM-dd"))
                 .OnCreate().Set("r.count = 1")
                 .OnMatch().Set("r.count = r.count + 1")
                 .ExecuteWithoutResultsAsync();
         }
+
     }
 }
