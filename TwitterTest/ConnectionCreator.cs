@@ -1,6 +1,9 @@
-﻿using MongoDB.Bson;
+﻿using Microsoft.Extensions.Configuration;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using Neo4jClient;
+using Tweetinvi;
+using Tweetinvi.Models;
 
 namespace TwitterTest;
 
@@ -39,4 +42,20 @@ public static class ConnectionCreator
         }
     }
 
+    public static TwitterClient TwitterApi(IConfiguration config)
+    {
+        return new TwitterClient(CreateCredentials(config));
+
+        static IReadOnlyConsumerCredentials CreateCredentials(IConfiguration config)
+        {
+            string bearerToken = config["TWITTER_BEARER_TOKEN"] ??
+                                 throw new InvalidOperationException($"Configuration is missing bearerToken");
+            string consumerSecret = config["TWITTER_CONSUMER_SECRET"] ??
+                                    throw new InvalidOperationException($"Configuration is missing consumerSecret");
+            string consumerKey = config["TWITTER_CONSUMER_KEY"] ??
+                                 throw new InvalidOperationException($"Configuration is missing consumerKey");
+
+            return new ReadOnlyConsumerCredentials(consumerKey, consumerSecret, bearerToken);
+        }
+    }
 }

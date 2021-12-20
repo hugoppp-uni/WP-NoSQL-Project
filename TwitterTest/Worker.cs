@@ -19,19 +19,15 @@ public class Worker : BackgroundService
 
     public Worker(
         ILogger<Worker> logger,
-        IConfiguration config,
         TweetFilter tweetFilter,
         Neo4JInserter neo4JInserter,
-        MongoInserter mongoInserter
-    )
+        ServiceResolver<IMongoInserter> getMongoInserter,
+        ServiceResolver<ISampleStreamV2> getSampleStream)
     {
         _logger = logger;
 
-
-        var userClient = new TwitterClient(CreateCredentials(config));
-
-
-        _sampleStreamV2 = userClient.StreamsV2.CreateSampleStream();
+        _sampleStreamV2 = getSampleStream.Invoke();
+        var mongoInserter = getMongoInserter.Invoke();
 
         _sampleStreamV2.TweetReceived += (_, x) =>
         {
@@ -73,7 +69,7 @@ public class Worker : BackgroundService
         {
             if (!x.IsCompletedSuccessfully)
             {
-                logger.LogError("Stream stopped, success: {}", x.IsCompletedSuccessfully);
+                logger.LogCritical("Stream was interrupted unexpectedly");
                 throw new Exception("Stream was interrupted unexpectedly", x.Exception);
             }
         });
@@ -104,15 +100,5 @@ public class Worker : BackgroundService
         }
 
         _sampleStreamV2.StopStream();
-    }
-
-    private static IReadOnlyConsumerCredentials CreateCredentials(IConfiguration config)
-    {
-        string bearerToken = config["TWITTER_BEARER_TOKEN"] ?? throw new InvalidOperationException($"Configuration is missing bearerToken");
-        string consumerSecret = config["TWITTER_CONSUMER_SECRET"] ??
-                                throw new InvalidOperationException($"Configuration is missing consumerSecret");
-        string consumerKey = config["TWITTER_CONSUMER_KEY"] ?? throw new InvalidOperationException($"Configuration is missing consumerKey");
-
-        return new ReadOnlyConsumerCredentials(consumerKey, consumerSecret, bearerToken);
     }
 }

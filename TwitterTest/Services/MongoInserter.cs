@@ -3,7 +3,22 @@ using Tweetinvi.Models.V2;
 
 namespace TwitterTest.Services;
 
-public class MongoInserter
+public interface IMongoInserter
+{
+    Task InsertTweetAsync(TweetV2 tweet);
+}
+
+public class MongoNullInserter : IMongoInserter
+{
+
+    public Task InsertTweetAsync(TweetV2 tweet)
+    {
+        return Task.CompletedTask;
+    }
+
+}
+
+public class MongoInserter : IMongoInserter
 {
     private IMongoCollection<TweetV2> _tweetCollection;
 
