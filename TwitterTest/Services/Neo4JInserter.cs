@@ -1,8 +1,5 @@
-﻿using System.Collections.Immutable;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Neo4jClient;
-using Tweetinvi.Core.Events;
-using Tweetinvi.Core.Extensions;
 using Tweetinvi.Models.V2;
 
 namespace TwitterTest.Services;
@@ -56,10 +53,10 @@ public class Neo4JInserter
         if (_logger.IsEnabled(LogLevel.Information))
         {
             string hashtagsString = string.Join(", ",
-                    uniqueHashtags
-                        .OrderByDescending(x => x.Count)
-                        .Select(x => $"{x.Name} ({x.Count})")
-                );
+                uniqueHashtags
+                    .OrderByDescending(x => x.Count)
+                    .Select(x => $"{x.Name} ({x.Count})")
+            );
             _logger.LogTrace("adding hashtags: {}", hashtagsString);
         }
 
@@ -69,8 +66,8 @@ public class Neo4JInserter
                 .Match("(tweet:Tweet {id: $p_tweetId} )")
                 .Merge("(n:Hashtag {name: $p_name})")
                 .WithParam("p_name", hashtag.Name)
-                .OnCreate().Set($"n.count = {hashtag.Count}")
-                .OnMatch().Set($"n.count = n.count + {hashtag.Count}")
+                .OnCreate().Set("n.count = 1")
+                .OnMatch().Set("n.count = n.count + 1")
                 .WithParams(new { p_tweetId = tweetV2.Id })
                 .Create("(n) -[:USED_IN]-> (tweet)")
                 .ExecuteWithoutResultsAsync();
@@ -86,8 +83,14 @@ public class Neo4JInserter
             await _graphClient.Cypher
                 .Match("(tweet:Tweet {id: $p_tweetId})")
                 .WithParam("p_tweetId", tweetV2.Id)
-                .Merge("(entity:AnnotationEntity {name: $p_name})")
-                .WithParam("p_name", annotationEntity.Name)
+                .Merge("(entity:AnnotationEntity {" +
+                       "name: $p_name," +
+                       "description: $p_description})")
+                .WithParams(new
+                {
+                    p_name = annotationEntity.Name,
+                    p_description = annotationEntity.Description ?? "",
+                })
                 .OnCreate().Set("entity.count = 1")
                 .OnMatch().Set("entity.count = entity.count + 1")
                 .Create("(entity)-[:MENTIONED_IN]->(tweet)")
@@ -98,13 +101,22 @@ public class Neo4JInserter
     private async Task InsertTweet(TweetV2 tweetV2)
     {
         await _graphClient.Cypher
-            .Create("(:Tweet {id:$p_id, text:$p_text, lang:$p_lang, date:date($p_date)})")
+            .Create("( :Tweet {" +
+                    "id:$p_id," +
+                    "text:$p_text," +
+                    "lang:$p_lang," +
+                    "date:date($p_date)," +
+                    "authorId:$p_authorId," +
+                    "sensitive:$p_sensitive" +
+                    "})")
             .WithParams(new
             {
+                p_sensitive = tweetV2.PossiblySensitive,
                 p_id = tweetV2.Id,
                 p_text = tweetV2.Text,
                 p_lang = tweetV2.Lang,
-                p_date = tweetV2.CreatedAt.Date.ToString("yyyy-MM-dd")
+                p_date = tweetV2.CreatedAt.Date.ToString("yyyy-MM-dd"),
+                p_authorId = tweetV2.AuthorId,
             })
             .ExecuteWithoutResultsAsync();
     }

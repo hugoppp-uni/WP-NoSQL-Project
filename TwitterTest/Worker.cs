@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using System.Diagnostics;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Tweetinvi;
@@ -20,8 +21,6 @@ public class Worker : BackgroundService
     private TweetLanguageAnalyzer _tweetLanguageAnalyzer;
     private ISampleStreamV2 _sampleStreamV2;
 
-    private HashSet<long> _threads = new();
-
     public Worker(ILogger<Worker> logger, IConfiguration config, TweetFilter tweetFilter, TweetLanguageAnalyzer tweetLanguageAnalyzer,
         Neo4JInserter neo4JInserter)
     {
@@ -39,7 +38,6 @@ public class Worker : BackgroundService
             if (x.Tweet is null)
                 return;
 
-            _threads.Add(Thread.CurrentThread.ManagedThreadId);
             tweetLanguageAnalyzer.AddTweet(x.Tweet);
             _stats.TotalTweetCount++;
             if (tweetFilter.TweetShouldBeIgnored(x.Tweet))
@@ -70,6 +68,13 @@ public class Worker : BackgroundService
             //     TweetResponseFields.Tweet.Entities,
             //     TweetResponseFields.Tweet.,
             // }
+        }).ContinueWith(x =>
+        {
+            if (!x.IsCompletedSuccessfully)
+            {
+                logger.LogError("Stream stopped, success: {}", x.IsCompletedSuccessfully);
+                throw new Exception("Stream was interrupted unexpectedly", x.Exception);
+            }
         });
     }
 
