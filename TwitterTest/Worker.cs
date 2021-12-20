@@ -1,11 +1,8 @@
-﻿using System.Diagnostics;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Tweetinvi;
-using Tweetinvi.Core.Iterators;
 using Tweetinvi.Models;
-using Tweetinvi.Models.V2;
 using Tweetinvi.Parameters.V2;
 using Tweetinvi.Streaming.V2;
 using TwitterTest.Models;
@@ -18,14 +15,12 @@ public class Worker : BackgroundService
     private readonly ILogger<Worker> _logger;
 
     private Stats _stats = new();
-    private TweetLanguageAnalyzer _tweetLanguageAnalyzer;
     private ISampleStreamV2 _sampleStreamV2;
 
-    public Worker(ILogger<Worker> logger, IConfiguration config, TweetFilter tweetFilter, TweetLanguageAnalyzer tweetLanguageAnalyzer,
+    public Worker(ILogger<Worker> logger, IConfiguration config, TweetFilter tweetFilter,
         Neo4JInserter neo4JInserter)
     {
         _logger = logger;
-        _tweetLanguageAnalyzer = tweetLanguageAnalyzer;
 
 
         var userClient = new TwitterClient(CreateCredentials(config));
@@ -38,7 +33,6 @@ public class Worker : BackgroundService
             if (x.Tweet is null)
                 return;
 
-            tweetLanguageAnalyzer.AddTweet(x.Tweet);
             _stats.TotalTweetCount++;
             if (tweetFilter.TweetShouldBeIgnored(x.Tweet))
                 return;
@@ -100,15 +94,6 @@ public class Worker : BackgroundService
                 _stats.FilteredTweetCount,
                 (_stats.FilteredTweetCount - lastFilteredTweetCount) / (millisecondsDelay / 1000d)
             );
-
-            string languageStats = string.Join(Environment.NewLine,
-                _tweetLanguageAnalyzer.TweetsPerLanguageString()
-                    .Take(10)
-                    .Prepend("Language stats:"));
-
-            _logger.LogInformation(languageStats);
-
-            Console.WriteLine();
         }
 
         _sampleStreamV2.StopStream();

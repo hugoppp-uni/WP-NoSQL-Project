@@ -1,4 +1,3 @@
-using System.Buffers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -17,9 +16,7 @@ IHost host = Host.CreateDefaultBuilder(args)
 
         services.AddSingleton<IGraphClient>(graphClient.Result);
         services.AddSingleton<Neo4JInserter>();
-        services.AddSingleton<TweetLanguageAnalyzer>();
         services.AddSingleton(new TweetFilter().AllowLanguage("de", "en"));
-
     })
     .Build();
 
@@ -29,7 +26,7 @@ async Task<GraphClient> ConnectToNeo4JAsync()
 {
     try
     {
-        GraphClient client = new GraphClient(new Uri("http://localhost:7474"), "neo4j","twitter");
+        GraphClient client = new GraphClient(new Uri("http://localhost:7474"), "neo4j", "twitter");
         await client.ConnectAsync();
         return client;
     }
