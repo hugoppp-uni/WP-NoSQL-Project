@@ -12,9 +12,12 @@ IHost host = Host.CreateDefaultBuilder(args)
     {
         services.AddHostedService<Worker>();
 
-        Task<GraphClient> graphClient = ConnectToNeo4JAsync();
+        services.AddSingleton<IGraphClient>(ConnectionCreator.Neo4J());
 
-        services.AddSingleton<IGraphClient>(graphClient.Result);
+        var mongoClient = ConnectionCreator.Mongo();
+        services.AddSingleton(mongoClient);
+
+        services.AddSingleton<MongoInserter>();
         services.AddSingleton<Neo4JInserter>();
         services.AddSingleton(new TweetFilter().AllowLanguage("de", "en"));
     })
@@ -22,16 +25,3 @@ IHost host = Host.CreateDefaultBuilder(args)
 
 await host.RunAsync();
 
-async Task<GraphClient> ConnectToNeo4JAsync()
-{
-    try
-    {
-        GraphClient client = new GraphClient(new Uri("http://localhost:7474"), "neo4j", "twitter");
-        await client.ConnectAsync();
-        return client;
-    }
-    catch (Exception e)
-    {
-        throw new InvalidOperationException("Could not connect to neo4j", e);
-    }
-}

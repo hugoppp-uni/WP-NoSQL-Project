@@ -1,4 +1,5 @@
-﻿using Tweetinvi.Models.V2;
+﻿using MongoDB.Driver;
+using Tweetinvi.Models.V2;
 
 namespace TwitterTest;
 
@@ -23,8 +24,19 @@ public static class Extensions
         }
 
         return tweetV2.ContextAnnotations;
-            // .DistinctBy(x => x.Entity.Id)
-            // .Select(x => x.Entity);
+        // .DistinctBy(x => x.Entity.Id)
+        // .Select(x => x.Entity);
+    }
+
+    public static IMongoDatabase GetDefaultDatabase(this IMongoClient mongoClient)
+    {
+        return mongoClient.GetDatabase("data");
+    }
+
+    public static IMongoCollection<TweetV2> GetTweetCollection(this IMongoClient mongoClient)
+    {
+        var mongoCollection = mongoClient.GetDefaultDatabase().GetCollection<TweetV2>("tweet");
+        return mongoCollection;
     }
 
 }

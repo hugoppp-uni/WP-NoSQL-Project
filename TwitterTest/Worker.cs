@@ -17,8 +17,13 @@ public class Worker : BackgroundService
     private Stats _stats = new();
     private ISampleStreamV2 _sampleStreamV2;
 
-    public Worker(ILogger<Worker> logger, IConfiguration config, TweetFilter tweetFilter,
-        Neo4JInserter neo4JInserter)
+    public Worker(
+        ILogger<Worker> logger,
+        IConfiguration config,
+        TweetFilter tweetFilter,
+        Neo4JInserter neo4JInserter,
+        MongoInserter mongoInserter
+    )
     {
         _logger = logger;
 
@@ -37,8 +42,10 @@ public class Worker : BackgroundService
             if (tweetFilter.TweetShouldBeIgnored(x.Tweet))
                 return;
 
-            lock (this)
-                neo4JInserter.InsertTweetAsync(x.Tweet).Wait();
+            Task insertMongo = mongoInserter.InsertTweetAsync(x.Tweet);
+            Task insertNeo4J = neo4JInserter.InsertTweetAsync(x.Tweet);
+
+            Task.WhenAll(insertMongo, insertNeo4J).Wait();
 
             _stats.FilteredTweetCount++;
         };
