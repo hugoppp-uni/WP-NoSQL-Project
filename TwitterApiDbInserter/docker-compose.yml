@@ -1,11 +1,14 @@
 version: '3'
 services:
   mongodb:
+    container_name: mongo-db
     image: mongo:latest
     ports:
       - "27017:27017"
-    container_name: mongo-db
+    volumes:
+      - "mongo_data:/data/db"
   neo4j:
+    container_name: neo4j
     environment:
       - NEO4J_AUTH=neo4j/twitter
       - NEO4J_apoc_export_file_enabled=true
@@ -26,3 +29,5 @@ services:
       dockerfile:
         TwitterTest/Dockerfile
       context: ..
+volumes:
+  mongo_data:
