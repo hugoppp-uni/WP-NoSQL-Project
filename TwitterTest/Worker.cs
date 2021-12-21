@@ -19,7 +19,7 @@ public class Worker : BackgroundService
 
     public Worker(
         ILogger<Worker> logger,
-        TweetFilter tweetFilter,
+        ITweetFilter tweetFilter,
         Neo4JInserter neo4JInserter,
         ServiceResolver<IMongoInserter> getMongoInserter,
         ServiceResolver<ISampleStreamV2> getSampleStream)

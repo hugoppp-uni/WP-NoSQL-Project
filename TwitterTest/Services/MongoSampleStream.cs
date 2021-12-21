@@ -10,14 +10,14 @@ using Tweetinvi.Streaming.V2;
 
 namespace TwitterTest.Services;
 
-public class MongoTweetStream : ISampleStreamV2
+public class MongoSampleStream : ISampleStreamV2
 {
     private readonly IMongoClient _mongoClient;
-    private readonly ILogger<MongoTweetStream> _logger;
+    private readonly ILogger<MongoSampleStream> _logger;
     private readonly IClientSessionHandle _session;
     private readonly CancellationTokenSource _cancellationTokenSource;
 
-    public MongoTweetStream(IMongoClient mongoClient, ILogger<MongoTweetStream> logger)
+    public MongoSampleStream(IMongoClient mongoClient, ILogger<MongoSampleStream> logger)
     {
         _mongoClient = mongoClient;
         _logger = logger;
@@ -38,7 +38,7 @@ public class MongoTweetStream : ISampleStreamV2
 
     public Task StartAsync()
     {
-        _logger.LogInformation($"Starting {nameof(MongoTweetStream)}");
+        _logger.LogInformation($"Starting {nameof(MongoSampleStream)}");
         IMongoCollection<TweetV2> tweetCollection = _mongoClient.GetTweetCollection();
         IAsyncCursor<TweetV2>? allTweets = tweetCollection.Find(_session, x => true).ToCursor();
 
@@ -58,9 +58,9 @@ public class MongoTweetStream : ISampleStreamV2
 
     public void StopStream()
     {
-        _logger.LogInformation($"Stopping {nameof(MongoTweetStream)}");
+        _logger.LogInformation($"Stopping {nameof(MongoSampleStream)}");
         _cancellationTokenSource.Cancel();
-        _logger.LogTrace($"{nameof(MongoTweetStream)} stopped");
+        _logger.LogTrace($"{nameof(MongoSampleStream)} stopped");
     }
 
 }

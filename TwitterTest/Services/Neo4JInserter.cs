@@ -29,12 +29,6 @@ public class Neo4JInserter
 
     private async Task Insert(TweetV2 tweetV2)
     {
-        if (tweetV2.ReferencedTweets?.Any(x => x.Type == "retweeted") ?? false)
-            return;
-        if (tweetV2.Entities?.Hashtags is null)
-            return;
-
-
         await InsertTweet(tweetV2);
 
         await InsertAnnotations(tweetV2);
@@ -44,7 +38,8 @@ public class Neo4JInserter
 
     private async Task InsertHashtags(TweetV2 tweetV2)
     {
-        var hashtags = tweetV2.Entities.Hashtags;
+        IEnumerable<HashtagV2> hashtags = tweetV2.Entities.Hashtags ?? Enumerable.Empty<HashtagV2>();
+
         var uniqueHashtags = hashtags
             .GroupBy(x => x.Tag)
             .Select(x => new { Name = x.Key, Count = x.Count() })
@@ -65,10 +60,9 @@ public class Neo4JInserter
             await _graphClient.Cypher
                 .Match("(tweet:Tweet {id: $p_tweetId} )")
                 .Merge("(n:Hashtag {name: $p_name})")
-                .WithParam("p_name", hashtag.Name)
+                .WithParams(new { p_tweetId = tweetV2.Id, p_name = hashtag.Name })
                 .OnCreate().Set("n.count = 1")
                 .OnMatch().Set("n.count = n.count + 1")
-                .WithParams(new { p_tweetId = tweetV2.Id })
                 .Create("(n) -[:USED_IN]-> (tweet)")
                 .ExecuteWithoutResultsAsync();
         }
@@ -76,9 +70,10 @@ public class Neo4JInserter
 
     private async Task InsertAnnotations(TweetV2 tweetV2)
     {
-        var annotationEntities = tweetV2.GetDistinctContextAnnotationEntities().ToArray();
+        IEnumerable<TweetContextAnnotationV2> contextAnnotations =
+            tweetV2.ContextAnnotations ?? Enumerable.Empty<TweetContextAnnotationV2>();
 
-        foreach (var annotation in annotationEntities)
+        foreach (var annotation in contextAnnotations)
         {
             await InsertAnnotationDomain(annotation.Domain);
             await InsertAnnotationsEntity(annotation.Entity);
@@ -91,32 +86,32 @@ public class Neo4JInserter
                 .Merge("(entity)-[r:HAS_DOMAIN]->(domain)")
                 .ExecuteWithoutResultsAsync();
         }
-    }
 
-    private async Task InsertAnnotationsEntity(TweetContextAnnotationEntityV2 annotationEntity)
-    {
-        await _graphClient.Cypher
-            .Merge("(e:Entity {name: $p_name})")
-            .WithParams(new
-            {
-                p_id = annotationEntity.Id,
-                p_name = annotationEntity.Name,
-            })
-            .ExecuteWithoutResultsAsync();
-    }
+        async Task InsertAnnotationsEntity(TweetContextAnnotationEntityV2 annotationEntity)
+        {
+            await _graphClient.Cypher
+                .Merge("(e:Entity {name: $p_name})")
+                .WithParams(new
+                {
+                    p_id = annotationEntity.Id,
+                    p_name = annotationEntity.Name,
+                })
+                .ExecuteWithoutResultsAsync();
+        }
 
-    private Task InsertAnnotationDomain(TweetContextAnnotationDomainV2 domain)
-    {
-        return _graphClient.Cypher
-            .Merge("(d:Domain {id: $p_id})")
-            .OnCreate().Set("d.name = $p_name, d.description = $p_description")
-            .WithParams(new
-            {
-                p_name = domain.Name ?? "",
-                p_description = domain.Description ?? "",
-                p_id = domain.Id,
-            })
-            .ExecuteWithoutResultsAsync();
+        Task InsertAnnotationDomain(TweetContextAnnotationDomainV2 domain)
+        {
+            return _graphClient.Cypher
+                .Merge("(d:Domain {id: $p_id})")
+                .OnCreate().Set("d.name = $p_name, d.description = $p_description")
+                .WithParams(new
+                {
+                    p_name = domain.Name ?? "",
+                    p_description = domain.Description ?? "",
+                    p_id = domain.Id,
+                })
+                .ExecuteWithoutResultsAsync();
+        }
     }
 
     private async Task InsertTweet(TweetV2 tweetV2)

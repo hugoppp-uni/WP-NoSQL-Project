@@ -3,6 +3,41 @@ using Tweetinvi.Models.V2;
 
 namespace TwitterTest;
 
+[Flags]
+public enum TweetType
+{
+    None = 0,
+    Normal = 1 << 0,
+    Retweet = 1 << 1,
+    Reply = 1 << 2,
+    Quote = 1 << 3,
+}
+
+public static class TweetinviExtensions
+{
+
+    public static TweetType GetTweetTypes(this TweetV2 tweetV2)
+    {
+        if (tweetV2.ReferencedTweets is null || !tweetV2.ReferencedTweets.Any())
+            return TweetType.Normal;
+
+        TweetType tweetType = TweetType.None;
+        foreach (ReferencedTweetV2 tweetV2ReferencedTweet in tweetV2.ReferencedTweets)
+        {
+            tweetType |= tweetV2ReferencedTweet.Type switch
+            {
+                "quoted" => TweetType.Quote,
+                "retweeted" => TweetType.Retweet,
+                "replied_to" => TweetType.Retweet,
+                _ => TweetType.None
+            };
+        }
+
+        return tweetType;
+    }
+
+}
+
 public static class Extensions
 {
     //https://stackoverflow.com/a/10629938/12867415
@@ -15,18 +50,6 @@ public static class Extensions
                 (t1, t2) => t1.Concat(new T[] { t2 }));
     }
 
-
-    public static IEnumerable<TweetContextAnnotationV2> GetDistinctContextAnnotationEntities(this TweetV2 tweetV2)
-    {
-        if (tweetV2.ContextAnnotations is null)
-        {
-            return Enumerable.Empty<TweetContextAnnotationV2>();
-        }
-
-        return tweetV2.ContextAnnotations;
-        // .DistinctBy(x => x.Entity.Id)
-        // .Select(x => x.Entity);
-    }
 
     public static IMongoDatabase GetDefaultDatabase(this IMongoClient mongoClient)
     {
