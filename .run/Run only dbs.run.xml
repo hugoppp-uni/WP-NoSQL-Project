@@ -9,7 +9,7 @@
             <option value="neo4j" />
           </list>
         </option>
-        <option name="sourceFilePath" value="TwitterTest/docker-compose.yml" />
+        <option name="sourceFilePath" value="TwitterApiDbInserter/docker-compose.yml" />
         <option name="upNoDeps" value="true" />
         <option name="upRemoveOrphans" value="true" />
       </settings>

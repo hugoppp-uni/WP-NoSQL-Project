@@ -4,7 +4,7 @@
       <settings>
         <option name="envFilePath" value="" />
         <option name="commandLineOptions" value="--build" />
-        <option name="sourceFilePath" value="TwitterTest/docker-compose.yml" />
+        <option name="sourceFilePath" value="TwitterApiDbInserter/docker-compose.yml" />
         <option name="upRemoveOrphans" value="true" />
       </settings>
     </deployment>

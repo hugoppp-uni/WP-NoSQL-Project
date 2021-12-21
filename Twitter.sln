@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwitterTest", "TwitterTest\TwitterTest.csproj", "{B6B26C2B-0BAD-4F85-AB2E-5EDC746FBB7F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwitterApiDbInserter", "TwitterApiDbInserter\TwitterApiDbInserter.csproj", "{B6B26C2B-0BAD-4F85-AB2E-5EDC746FBB7F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
