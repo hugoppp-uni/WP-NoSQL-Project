@@ -60,11 +60,11 @@ public class Neo4JInserter
         foreach (var hashtag in uniqueHashtags)
         {
             await _graphClient.Cypher
-                .Match("(tweet:Tweet {id: $p_tweetId} )")
-                .Merge("(n:Hashtag {name: $p_name})")
+                .Match("(tweet:Tweet {Id: $p_tweetId} )")
+                .Merge("(n:Hashtag {Name: $p_name})")
                 .WithParams(new { p_tweetId = tweetV2.Id, p_name = hashtag.Name })
-                .OnCreate().Set("n.count = 1")
-                .OnMatch().Set("n.count = n.count + 1")
+                .OnCreate().Set("n.Count = 1")
+                .OnMatch().Set("n.Count = n.Count + 1")
                 .Create("(n) -[:USED_IN]-> (tweet)")
                 .ExecuteWithoutResultsAsync();
         }
@@ -91,9 +91,9 @@ public class Neo4JInserter
         foreach (var annotation in tweetV2.ContextAnnotations)
         {
             await _graphClient.Cypher
-                .Match("(tweet:Tweet {id: $p_tweetId})").WithParam("p_tweetId", tweetV2.Id)
-                .Match("(domain:Domain {id: $p_domainId})").WithParam("p_domainId", annotation.Domain.Id)
-                .Match("(entity:Entity {name: $p_entityName})").WithParam("p_entityName", annotation.Entity.Name)
+                .Match("(tweet:Tweet {Id: $p_tweetId})").WithParam("p_tweetId", tweetV2.Id)
+                .Match("(domain:Domain {Id: $p_domainId})").WithParam("p_domainId", annotation.Domain.Id)
+                .Match("(entity:Entity {Name: $p_entityName})").WithParam("p_entityName", annotation.Entity.Name)
                 .Create("(entity)-[:MENTIONED_IN]->(tweet)")
                 .Merge("(entity)-[r:HAS_DOMAIN]->(domain)")
                 .ExecuteWithoutResultsAsync();
@@ -102,8 +102,8 @@ public class Neo4JInserter
         Task InsertAnnotationsEntity(TweetContextAnnotationEntityV2 annotationEntity)
         {
             return _graphClient.Cypher
-                .Merge("(e:Entity {id: $p_id})")
-                .OnCreate().Set("e.name = $p_name")
+                .Merge("(e:Entity {Id: $p_id})")
+                .OnCreate().Set("e.Name = $p_name")
                 .WithParams(new
                 {
                     p_id = annotationEntity.Id,
@@ -116,8 +116,10 @@ public class Neo4JInserter
         {
             _alreadyAddedDomains.Add(domain.Id);
             return _graphClient.Cypher
-                .Merge("(d:Domain {id: $p_id})")
-                .OnCreate().Set("d.name = $p_name, d.description = $p_description")
+                .Merge("(d:Domain {Id: $p_id})")
+                .OnCreate().Set(
+                    "d.Name = $p_name, " +
+                    "d.Description = $p_description")
                 .WithParams(new
                 {
                     p_name = domain.Name ?? "",
@@ -132,12 +134,12 @@ public class Neo4JInserter
     {
         return _graphClient.Cypher
             .Create("( :Tweet {" +
-                    "id:$p_id," +
-                    "text:$p_text," +
-                    "lang:$p_lang," +
-                    "date:date($p_date)," +
-                    "authorId:$p_authorId," +
-                    "sensitive:$p_sensitive" +
+                    "Id:$p_id," +
+                    "Text:$p_text," +
+                    "Lang:$p_lang," +
+                    "Date:date($p_date)," +
+                    "AuthorId:$p_authorId," +
+                    "Sensitive:$p_sensitive" +
                     "})")
             .WithParams(new
             {
