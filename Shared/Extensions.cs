@@ -52,8 +52,8 @@ public static class Extensions
 
     public static void ForEach<T>(this IEnumerable<T> collection, Action<T> action)
     {
-      foreach (T obj in collection)
-        action(obj);
+        foreach (T obj in collection)
+            action(obj);
     }
 
     public static IMongoDatabase GetDefaultDatabase(this IMongoClient mongoClient)
@@ -65,6 +65,13 @@ public static class Extensions
     {
         var mongoCollection = mongoClient.GetDefaultDatabase().GetCollection<TweetV2>("tweet");
         return mongoCollection;
+    }
+
+    public static DateOnly DateOnlyXDaysAgo(this DateTime date, int x) => DateOnly.FromDateTime(date).AddDays(-1 * x);
+
+    public static string DateOnlyXDaysAgo(this DateTime date, int? x)
+    {
+        return x is null ? "" : DateTime.Today.DateOnlyXDaysAgo(x.Value).ToString();
     }
 
 }
