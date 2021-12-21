@@ -9,6 +9,8 @@ public class Neo4JInserter
     private readonly IGraphClient _graphClient;
     private readonly ILogger<Neo4JInserter> _logger;
 
+    private HashSet<string> _alreadyAddedDomains = new();
+
     public Neo4JInserter(IGraphClient graphClient, ILogger<Neo4JInserter> logger)
     {
         _graphClient = graphClient;
@@ -70,14 +72,24 @@ public class Neo4JInserter
 
     private async Task InsertAnnotations(TweetV2 tweetV2)
     {
-        IEnumerable<TweetContextAnnotationV2> contextAnnotations =
-            tweetV2.ContextAnnotations ?? Enumerable.Empty<TweetContextAnnotationV2>();
+        if (tweetV2.ContextAnnotations is null)
+            return;
 
-        foreach (var annotation in contextAnnotations)
+        //insert new domains
+        await Task.WhenAll(tweetV2.ContextAnnotations
+            .Select(x => x.Domain)
+            .DistinctBy(x => x.Id)
+            .Where(x => !_alreadyAddedDomains.Contains(x.Id))
+            .Select(InsertAnnotationDomain));
+
+        //insert new entities
+        await Task.WhenAll(tweetV2.ContextAnnotations
+            .Select(x => x.Entity)
+            .DistinctBy(x => x.Id)
+            .Select(InsertAnnotationsEntity));
+
+        foreach (var annotation in tweetV2.ContextAnnotations)
         {
-            await InsertAnnotationDomain(annotation.Domain);
-            await InsertAnnotationsEntity(annotation.Entity);
-
             await _graphClient.Cypher
                 .Match("(tweet:Tweet {id: $p_tweetId})").WithParam("p_tweetId", tweetV2.Id)
                 .Match("(domain:Domain {id: $p_domainId})").WithParam("p_domainId", annotation.Domain.Id)
@@ -87,10 +99,11 @@ public class Neo4JInserter
                 .ExecuteWithoutResultsAsync();
         }
 
-        async Task InsertAnnotationsEntity(TweetContextAnnotationEntityV2 annotationEntity)
+        Task InsertAnnotationsEntity(TweetContextAnnotationEntityV2 annotationEntity)
         {
-            await _graphClient.Cypher
-                .Merge("(e:Entity {name: $p_name})")
+            return _graphClient.Cypher
+                .Merge("(e:Entity {id: $p_id})")
+                .OnCreate().Set("e.name = $p_name")
                 .WithParams(new
                 {
                     p_id = annotationEntity.Id,
@@ -101,6 +114,7 @@ public class Neo4JInserter
 
         Task InsertAnnotationDomain(TweetContextAnnotationDomainV2 domain)
         {
+            _alreadyAddedDomains.Add(domain.Id);
             return _graphClient.Cypher
                 .Merge("(d:Domain {id: $p_id})")
                 .OnCreate().Set("d.name = $p_name, d.description = $p_description")
@@ -114,9 +128,9 @@ public class Neo4JInserter
         }
     }
 
-    private async Task InsertTweet(TweetV2 tweetV2)
+    private Task InsertTweet(TweetV2 tweetV2)
     {
-        await _graphClient.Cypher
+        return _graphClient.Cypher
             .Create("( :Tweet {" +
                     "id:$p_id," +
                     "text:$p_text," +

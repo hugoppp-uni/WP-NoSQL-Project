@@ -50,6 +50,11 @@ public static class Extensions
                 (t1, t2) => t1.Concat(new T[] { t2 }));
     }
 
+    public static void ForEach<T>(this IEnumerable<T> collection, Action<T> action)
+    {
+      foreach (T obj in collection)
+        action(obj);
+    }
 
     public static IMongoDatabase GetDefaultDatabase(this IMongoClient mongoClient)
     {
