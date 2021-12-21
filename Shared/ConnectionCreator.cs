@@ -5,7 +5,7 @@ using Neo4jClient;
 using Tweetinvi;
 using Tweetinvi.Models;
 
-namespace TwitterTest;
+namespace Shared;
 
 public static class ConnectionCreator
 {

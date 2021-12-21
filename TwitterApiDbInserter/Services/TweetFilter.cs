@@ -1,4 +1,5 @@
-﻿using Tweetinvi.Models.V2;
+﻿using Shared;
+using Tweetinvi.Models.V2;
 
 namespace TwitterTest.Services;
 

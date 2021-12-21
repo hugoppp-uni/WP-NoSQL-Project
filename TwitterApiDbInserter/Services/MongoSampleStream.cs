@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using Shared;
 using Tweetinvi.Events;
 using Tweetinvi.Events.V2;
 using Tweetinvi.Models;

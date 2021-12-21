@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Neo4jClient;
+using Shared;
 using Tweetinvi;
 using Tweetinvi.Streaming.V2;
 using Tweetinvi.Streams;

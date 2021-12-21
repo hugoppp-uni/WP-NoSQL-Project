@@ -1,7 +1,7 @@
 ﻿using MongoDB.Driver;
 using Tweetinvi.Models.V2;
 
-namespace TwitterTest;
+namespace Shared;
 
 [Flags]
 public enum TweetType
