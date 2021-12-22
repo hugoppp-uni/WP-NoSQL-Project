@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Neo4jClient;
+using Neo4jClient.Cypher;
+using Shared;
 using Tweetinvi.Models.V2;
 
 namespace TwitterTest.Services;
@@ -31,7 +33,23 @@ public class Neo4JInserter
 
     private async Task Insert(TweetV2 tweetV2)
     {
-        await InsertTweet(tweetV2);
+        bool isRetweet = false;
+        if (tweetV2.GetTweetTypes().HasFlag(TweetType.Retweet))
+        {
+            ReferencedTweetV2 original = tweetV2.ReferencedTweets.WithType(TweetType.Retweet).First();
+            if (await Neo4JQueries.TweetExists(_graphClient, original.Id))
+            {
+                _logger.LogWarning("discarding duplicate {}", original.Id);
+                return;
+            }
+
+
+            tweetV2.Id = original.Id;
+            tweetV2.AuthorId = null;
+            isRetweet = true;
+        }
+
+        await InsertTweet(tweetV2, isRetweet);
 
         await InsertAnnotations(tweetV2);
 
@@ -130,15 +148,15 @@ public class Neo4JInserter
         }
     }
 
-    private Task InsertTweet(TweetV2 tweetV2)
+    private Task InsertTweet(TweetV2 tweetV2, bool isRetweet)
     {
         return _graphClient.Cypher
             .Create("( :Tweet {" +
                     "Id:$p_id," +
                     "Text:$p_text," +
                     "Lang:$p_lang," +
-                    "Date:date($p_date)," +
-                    "AuthorId:$p_authorId," +
+                    "Date:date($p_date)," + //is wrong if it is a retweet, probably doesn't matter though
+                    (isRetweet ? "Retweet:true," : "AuthorId:$p_authorId,") +
                     "Sensitive:$p_sensitive" +
                     "})")
             .WithParams(new

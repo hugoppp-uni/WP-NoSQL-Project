@@ -24,10 +24,6 @@ public class TweetFilter : ITweetFilter
         if (ignoredTypesOfTweet != TweetType.None)
             return true;
 
-        if (tweetV2.ReferencedTweets is not null &&
-            tweetV2.ReferencedTweets.Any(x => x.Type == "retweeted"))
-            return true;
-
         if (_shouldBeIgnoredFunc.Any(func => func.Invoke(tweetV2)))
             return true;
 

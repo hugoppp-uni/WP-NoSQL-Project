@@ -27,7 +27,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<ITweetFilter>(
             new TweetFilter()
                 .AllowLanguage("de", "en", "ja")
-                .IgnoreTweetTypes(TweetType.Retweet)
+                // .IgnoreTweetTypes(TweetType.Retweet)
                 .IgnoreIf(tweet => (tweet.Entities.Hashtags is null || !tweet.Entities.Hashtags.Any()) &&
                                    (tweet.ContextAnnotations is null || !tweet.ContextAnnotations.Any()))
         );

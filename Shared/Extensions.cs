@@ -24,16 +24,23 @@ public static class TweetinviExtensions
         TweetType tweetType = TweetType.None;
         foreach (ReferencedTweetV2 tweetV2ReferencedTweet in tweetV2.ReferencedTweets)
         {
-            tweetType |= tweetV2ReferencedTweet.Type switch
-            {
-                "quoted" => TweetType.Quote,
-                "retweeted" => TweetType.Retweet,
-                "replied_to" => TweetType.Retweet,
-                _ => TweetType.None
-            };
+            tweetType |= ParseTweetType(tweetV2ReferencedTweet.Type);
         }
 
         return tweetType;
+    }
+
+    public static TweetType ParseTweetType(string tweetType) => tweetType switch
+    {
+        "quoted" => TweetType.Quote,
+        "retweeted" => TweetType.Retweet,
+        "replied_to" => TweetType.Reply,
+        _ => TweetType.None
+    };
+
+    public static IEnumerable<ReferencedTweetV2> WithType(this ReferencedTweetV2[] referencedTweets, TweetType type)
+    {
+        return referencedTweets.Where(x => ParseTweetType(x.Type) == type);
     }
 
 }
