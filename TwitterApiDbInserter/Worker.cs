@@ -35,7 +35,7 @@ public class Worker : BackgroundService
                 return;
 
             _stats.TotalTweetCount++;
-            if (tweetFilter.TweetShouldBeIgnored(x.Tweet))
+            if (tweetFilter.TweetShouldBeIgnored(x.Tweet).Result)
                 return;
 
             Task insertMongo = mongoInserter.InsertTweetAsync(x.Tweet);

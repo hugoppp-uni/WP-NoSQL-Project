@@ -16,18 +16,9 @@ public enum TweetType
 public static class TweetinviExtensions
 {
 
-    public static TweetType GetTweetTypes(this TweetV2 tweetV2)
+    public static TweetType Type(this ReferencedTweetV2 referencedTweetV2)
     {
-        if (tweetV2.ReferencedTweets is null || !tweetV2.ReferencedTweets.Any())
-            return TweetType.Normal;
-
-        TweetType tweetType = TweetType.None;
-        foreach (ReferencedTweetV2 tweetV2ReferencedTweet in tweetV2.ReferencedTweets)
-        {
-            tweetType |= ParseTweetType(tweetV2ReferencedTweet.Type);
-        }
-
-        return tweetType;
+        return ParseTweetType(referencedTweetV2.Type);
     }
 
     public static TweetType ParseTweetType(string tweetType) => tweetType switch

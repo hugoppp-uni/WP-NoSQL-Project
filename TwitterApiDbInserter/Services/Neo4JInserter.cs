@@ -34,17 +34,13 @@ public class Neo4JInserter
     private async Task Insert(TweetV2 tweetV2)
     {
         bool isRetweet = false;
-        if (tweetV2.GetTweetTypes().HasFlag(TweetType.Retweet))
+
+        ReferencedTweetV2? referencedTweetRetweet =
+            tweetV2.ReferencedTweets?.FirstOrDefault(x => x.Type() == TweetType.Retweet);
+        if (referencedTweetRetweet is not null)
         {
-            ReferencedTweetV2 original = tweetV2.ReferencedTweets.WithType(TweetType.Retweet).First();
-            if (await Neo4JQueries.TweetExists(_graphClient, original.Id))
-            {
-                _logger.LogWarning("discarding duplicate {}", original.Id);
-                return;
-            }
-
-
-            tweetV2.Id = original.Id;
+            //todo make this code not suck
+            tweetV2.Id = referencedTweetRetweet.Id;
             tweetV2.AuthorId = null;
             isRetweet = true;
         }

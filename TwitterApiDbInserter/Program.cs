@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Neo4jClient;
 using Shared;
 using Tweetinvi;
+using Tweetinvi.Models.V2;
 using Tweetinvi.Streaming.V2;
 using Tweetinvi.Streams;
 using TwitterTest;
@@ -24,14 +25,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddSingleton(static (services) =>
             ConnectionCreator.TwitterApi(services.GetRequiredService<IConfiguration>()));
 
-        services.AddSingleton<ITweetFilter>(
-            new TweetFilter()
-                .AllowLanguage("de", "en", "ja")
-                // .IgnoreTweetTypes(TweetType.Retweet)
-                .IgnoreIf(tweet => (tweet.Entities.Hashtags is null || !tweet.Entities.Hashtags.Any()) &&
-                                   (tweet.ContextAnnotations is null || !tweet.ContextAnnotations.Any()))
-        );
-
+        services.AddSingleton(new TweetFilterFactory().Create);
         services.AddSingleton<Neo4JInserter>();
 
 
