@@ -21,6 +21,8 @@ IHost host = Host.CreateDefaultBuilder(args)
         //add DBs
         services.AddSingleton<IGraphClient>(ConnectionCreator.Neo4J());
         services.AddSingleton(ConnectionCreator.Mongo());
+        services.AddSingleton<Neo4JDataAccess>();
+
         //add APIs
         services.AddSingleton(static (services) =>
             ConnectionCreator.TwitterApi(services.GetRequiredService<IConfiguration>()));

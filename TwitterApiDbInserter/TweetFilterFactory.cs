@@ -15,7 +15,7 @@ public class TweetFilterFactory : IServiceFactory<ITweetFilter>
 {
     public ITweetFilter Create(IServiceProvider provider)
     {
-        var graphClient = provider.GetRequiredService<IGraphClient>();
+        var neo4J = provider.GetRequiredService<Neo4JDataAccess>();
         return new TweetFilter()
             .AllowLanguage("de", "en", "ja")
             .IgnoreIf(tweet => (tweet.Entities.Hashtags is null || !tweet.Entities.Hashtags.Any()) &&
@@ -29,7 +29,7 @@ public class TweetFilterFactory : IServiceFactory<ITweetFilter>
                 if (referencedTweetRetweet is null) return false;
 
                 //retweets are ok, as long the original tweet does not exist
-                bool originalTweetAlreadyExists = await Neo4JQueries.TweetExists(graphClient, referencedTweetRetweet.Id);
+                bool originalTweetAlreadyExists = await neo4J.TweetWithIdExists(referencedTweetRetweet.Id);
                 return originalTweetAlreadyExists;
             });
     }
