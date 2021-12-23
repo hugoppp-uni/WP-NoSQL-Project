@@ -62,8 +62,72 @@ public class Worker : BackgroundService
                 );
             }
         };
+    }
 
-        _sampleStreamV2.StartAsync(new StartSampleStreamV2Parameters()
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        //https://developer.twitter.com/en/docs/twitter-api/tweets/volume-streams/introduction
+        TimeSpan rateLimitTimeSpan = TimeSpan.FromMinutes(15 / 50d);
+
+        Task runStreamAndRetryIfFails = RunStreamAndRetryIfFails(stoppingToken, rateLimitTimeSpan * 1.2);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            TimeSpan tick = TimeSpan.FromSeconds(20);
+            _logger.LogInformation("Worker running at: {}, tick = {}s", DateTimeOffset.Now, tick.Seconds);
+
+            int lastFilteredTweetCount = _stats.FilteredTweetCount;
+            int lastReceiveCount = _stats.ReceiveCount;
+            int lastIgnoredCount = _stats.IgnoredTweetCount;
+
+
+            await Task.Delay(tick, stoppingToken);
+
+            if (lastReceiveCount == _stats.ReceiveCount)
+            {
+                _logger.LogWarning("[Total] {}, no new events received since the last tick", _stats.ReceiveCount);
+            }
+            else
+            {
+                _logger.LogInformation("[Events] {} ({}/s)",
+                    _stats.ReceiveCount,
+                    (_stats.ReceiveCount - lastReceiveCount) / (double)tick.Seconds
+                );
+                _logger.LogInformation("[Filtered] {} ({}/s)",
+                    _stats.FilteredTweetCount,
+                    (_stats.FilteredTweetCount - lastFilteredTweetCount) / (double)tick.Seconds
+                );
+                _logger.LogInformation("[Ignored] {} ({}/s)",
+                    _stats.IgnoredTweetCount,
+                    (_stats.IgnoredTweetCount - lastIgnoredCount) / (double)tick.Seconds
+                );
+            }
+        }
+
+        _sampleStreamV2.StopStream();
+        await runStreamAndRetryIfFails;
+    }
+
+    private async Task RunStreamAndRetryIfFails(CancellationToken stoppingToken, TimeSpan delay)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                await RunStreamAsync();
+                return; //<- stream successfully ended by other thread
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Stream was interrupted unexpectedly, retrying in {} seconds", delay.Seconds);
+                await Task.Delay(delay, stoppingToken);
+            }
+        }
+    }
+
+    private Task RunStreamAsync()
+    {
+        return _sampleStreamV2.StartAsync(new StartSampleStreamV2Parameters()
         {
             Expansions =
             {
@@ -82,13 +146,6 @@ public class Worker : BackgroundService
                 TweetResponseFields.Tweet.Entities,
                 TweetResponseFields.Tweet.PossiblySensitive
             },
-        }).ContinueWith(x =>
-        {
-            if (!x.IsCompletedSuccessfully)
-            {
-                logger.LogCritical("Stream was interrupted unexpectedly");
-                throw new Exception("Stream was interrupted unexpectedly", x.Exception);
-            }
         });
     }
 
@@ -120,42 +177,4 @@ public class Worker : BackgroundService
             yield return args.Tweet;
     }
 
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            const int secondDelay = 30;
-            _logger.LogInformation("Worker running at: {}, tick = {}s", DateTimeOffset.Now, secondDelay);
-
-            int lastFilteredTweetCount = _stats.FilteredTweetCount;
-            int lastReceiveCount = _stats.ReceiveCount;
-            int lastIgnoredCount = _stats.IgnoredTweetCount;
-
-
-            await Task.Delay(TimeSpan.FromSeconds(secondDelay), stoppingToken);
-
-            if (lastReceiveCount == _stats.ReceiveCount)
-            {
-                _logger.LogWarning("[Total] {}, no new events received since the last tick", _stats.ReceiveCount);
-            }
-            else
-            {
-                _logger.LogInformation("[Events] {} ({}/s)",
-                    _stats.ReceiveCount,
-                    (_stats.ReceiveCount - lastReceiveCount) / (double)secondDelay
-                );
-                _logger.LogInformation("[Filtered] {} ({}/s)",
-                    _stats.FilteredTweetCount,
-                    (_stats.FilteredTweetCount - lastFilteredTweetCount) / (double)secondDelay
-                );
-                _logger.LogInformation("[Ignored] {} ({}/s)",
-                    _stats.IgnoredTweetCount,
-                    (_stats.IgnoredTweetCount - lastIgnoredCount) / (double)secondDelay
-                );
-            }
-        }
-
-        _sampleStreamV2.StopStream();
-    }
 }
