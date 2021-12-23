@@ -5,7 +5,7 @@ namespace TwitterTest.Services;
 
 public interface ITweetFilter
 {
-    Task<bool> TweetShouldBeIgnored(TweetV2 tweetV2);
+    bool TweetShouldBeIgnored(TweetV2 tweetV2);
 }
 
 public class TweetFilter : ITweetFilter
@@ -14,9 +14,9 @@ public class TweetFilter : ITweetFilter
     private HashSet<string> allowedLanguages = new();
     private TweetType _ignoredTweetTypes = TweetType.None;
     private List<Func<TweetV2, bool>> _shouldBeIgnoredFunc = new();
-    private List<Func<TweetV2, Task<bool>>> _shouldBeIgnoredFuncAsync = new();
+    // private List<Func<TweetV2, Task<bool>>> _shouldBeIgnoredFuncAsync = new();
 
-    public async Task<bool> TweetShouldBeIgnored(TweetV2 tweetV2)
+    public bool TweetShouldBeIgnored(TweetV2 tweetV2)
     {
         if (allowedLanguages.Any() && !allowedLanguages.Contains(tweetV2.Lang))
             return true;
@@ -28,9 +28,9 @@ public class TweetFilter : ITweetFilter
         if (_shouldBeIgnoredFunc.Any(func => func.Invoke(tweetV2)))
             return true;
 
-        foreach (var shouldBeIgnoredAsync in _shouldBeIgnoredFuncAsync)
-            if (await shouldBeIgnoredAsync.Invoke(tweetV2))
-                return true;
+        // foreach (var shouldBeIgnoredAsync in _shouldBeIgnoredFuncAsync)
+            // if (await shouldBeIgnoredAsync.Invoke(tweetV2))
+                // return true;
 
         return false;
     }
@@ -45,11 +45,11 @@ public class TweetFilter : ITweetFilter
         return this;
     }
 
-    public TweetFilter IgnoreIfAsync(Func<TweetV2, Task<bool>> filter)
-    {
-        _shouldBeIgnoredFuncAsync.Add(filter);
-        return this;
-    }
+    // public TweetFilter IgnoreIfAsync(Func<TweetV2, Task<bool>> filter)
+    // {
+        // _shouldBeIgnoredFuncAsync.Add(filter);
+        // return this;
+    // }
 
     public TweetFilter IgnoreIf(Func<TweetV2, bool> filter)
     {

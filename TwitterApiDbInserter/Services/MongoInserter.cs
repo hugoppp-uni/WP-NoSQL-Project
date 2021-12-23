@@ -30,6 +30,14 @@ public class MongoInserter : IMongoInserter
 
     public Task InsertTweetAsync(TweetV2 tweet)
     {
-        return _tweetCollection.InsertOneAsync(tweet);
+        try
+        {
+            return _tweetCollection.InsertOneAsync(tweet);
+        }
+        catch (Exception e)
+        {
+            //todo: this sucks, maybe we should check for dubs instead
+            return Task.CompletedTask;
+        }
     }
 }

@@ -1,8 +1,11 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Shared;
 using Tweetinvi;
+using Tweetinvi.Events.V2;
 using Tweetinvi.Models;
+using Tweetinvi.Models.V2;
 using Tweetinvi.Parameters.V2;
 using Tweetinvi.Streaming.V2;
 using TwitterTest.Models;
@@ -16,55 +19,69 @@ public class Worker : BackgroundService
 
     private Stats _stats = new();
     private ISampleStreamV2 _sampleStreamV2;
+    private Neo4JDataAccess _neo4J;
 
     public Worker(
         ILogger<Worker> logger,
         ITweetFilter tweetFilter,
         Neo4JInserter neo4JInserter,
         ServiceResolver<IMongoInserter> getMongoInserter,
-        ServiceResolver<ISampleStreamV2> getSampleStream)
+        ServiceResolver<ISampleStreamV2> getSampleStream,
+        Neo4JDataAccess neo4J)
     {
         _logger = logger;
+        _neo4J = neo4J;
 
         _sampleStreamV2 = getSampleStream.Invoke();
         var mongoInserter = getMongoInserter.Invoke();
 
-        _sampleStreamV2.TweetReceived += (_, x) =>
+        _sampleStreamV2.TweetReceived += (_, args) =>
         {
-            if (x.Tweet is null)
+            if (args.Tweet is null)
                 return;
 
-            _stats.TotalTweetCount++;
-            if (tweetFilter.TweetShouldBeIgnored(x.Tweet).Result)
-                return;
+            _stats.ReceiveCount++;
 
-            Task insertMongo = mongoInserter.InsertTweetAsync(x.Tweet);
-            Task insertNeo4J = neo4JInserter.InsertTweetAsync(x.Tweet);
+            foreach (TweetV2 tweetToInsert in GetTweetsToInsert(args))
+            {
+                if (tweetFilter.TweetShouldBeIgnored(tweetToInsert))
+                {
+                    _stats.IgnoredTweetCount++;
+                    continue;
+                }
 
-            Task.WhenAll(insertMongo, insertNeo4J).Wait();
-
-            _stats.FilteredTweetCount++;
+                Task.WhenAll(
+                    mongoInserter.InsertTweetAsync(tweetToInsert),
+                    neo4JInserter.InsertTweetAsync(tweetToInsert).ContinueWith((task) =>
+                    {
+                        if (task.Result) //aka inserted successfully
+                            _stats.FilteredTweetCount++;
+                        else
+                            _stats.IgnoredTweetCount++;
+                    })
+                );
+            }
         };
 
         _sampleStreamV2.StartAsync(new StartSampleStreamV2Parameters()
         {
-            // Expansions =
-            // {
-            //     TweetResponseFields.Expansions.AuthorId,
-            //     TweetResponseFields.Expansions.ReferencedTweetsId,
-            //     TweetResponseFields.Expansions.InReplyToUserId,
-            // },
-            // TweetFields =
-            // {
-            //     TweetResponseFields.Tweet.AuthorId,
-            //     TweetResponseFields.Tweet.ReferencedTweets,
-            //     TweetResponseFields.Tweet.Id,
-            //     TweetResponseFields.Tweet.Text,
-            //     TweetResponseFields.Tweet.Lang,
-            //     TweetResponseFields.Tweet.CreatedAt,
-            //     TweetResponseFields.Tweet.Entities,
-            //     TweetResponseFields.Tweet.,
-            // }
+            Expansions =
+            {
+                TweetResponseFields.Expansions.AuthorId,
+                TweetResponseFields.Expansions.ReferencedTweetsId,
+                TweetResponseFields.Expansions.InReplyToUserId,
+            },
+            TweetFields =
+            {
+                TweetResponseFields.Tweet.AuthorId,
+                TweetResponseFields.Tweet.ReferencedTweets,
+                TweetResponseFields.Tweet.Id,
+                // TweetResponseFields.Tweet.Text,
+                TweetResponseFields.Tweet.Lang,
+                TweetResponseFields.Tweet.CreatedAt,
+                TweetResponseFields.Tweet.Entities,
+                TweetResponseFields.Tweet.PossiblySensitive
+            },
         }).ContinueWith(x =>
         {
             if (!x.IsCompletedSuccessfully)
@@ -75,33 +92,66 @@ public class Worker : BackgroundService
         });
     }
 
+    private IEnumerable<TweetV2> GetTweetsToInsert(TweetV2ReceivedEventArgs args)
+    {
+        if (args.Tweet.ReferencedTweets is null || args.Tweet.ReferencedTweets.Length == 0)
+        {
+            yield return args.Tweet;
+
+            yield break;
+        }
+
+        bool isRetweet = false;
+        foreach (ReferencedTweetV2 referencedTweet in args.Tweet.ReferencedTweets)
+        {
+            if (referencedTweet.Type() == TweetType.Retweet)
+            {
+                isRetweet = true;
+            }
+
+            //return all the referenced tweets
+            TweetV2? original = args.Includes?.Tweets?.FirstOrDefault(x => x.Id == referencedTweet.Id);
+            if (original is not null)
+                yield return original;
+        }
+
+        //we don't want the retweet as it is pretty much just a copy
+        if (!isRetweet)
+            yield return args.Tweet;
+    }
+
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            const int millisecondsDelay = 5000;
-            _logger.LogInformation("Worker running at: {time}, tick = {}s", DateTimeOffset.Now, millisecondsDelay / 1000d);
+            const int secondDelay = 30;
+            _logger.LogInformation("Worker running at: {}, tick = {}s", DateTimeOffset.Now, secondDelay);
 
             int lastFilteredTweetCount = _stats.FilteredTweetCount;
-            int lastTotalTweetCount = _stats.TotalTweetCount;
+            int lastReceiveCount = _stats.ReceiveCount;
+            int lastIgnoredCount = _stats.IgnoredTweetCount;
 
 
-            await Task.Delay(millisecondsDelay, stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(secondDelay), stoppingToken);
 
-            if (lastTotalTweetCount == _stats.TotalTweetCount)
+            if (lastReceiveCount == _stats.ReceiveCount)
             {
-                _logger.LogWarning("[Total] {}, no new tweets added since the last tick", _stats.TotalTweetCount);
+                _logger.LogWarning("[Total] {}, no new events received since the last tick", _stats.ReceiveCount);
             }
             else
             {
-                _logger.LogInformation("[Total] {} ({}/s)",
-                    _stats.TotalTweetCount,
-                    (_stats.TotalTweetCount - lastTotalTweetCount) / (millisecondsDelay / 1000d)
+                _logger.LogInformation("[Events] {} ({}/s)",
+                    _stats.ReceiveCount,
+                    (_stats.ReceiveCount - lastReceiveCount) / (double)secondDelay
                 );
                 _logger.LogInformation("[Filtered] {} ({}/s)",
                     _stats.FilteredTweetCount,
-                    (_stats.FilteredTweetCount - lastFilteredTweetCount) / (millisecondsDelay / 1000d)
+                    (_stats.FilteredTweetCount - lastFilteredTweetCount) / (double)secondDelay
+                );
+                _logger.LogInformation("[Ignored] {} ({}/s)",
+                    _stats.IgnoredTweetCount,
+                    (_stats.IgnoredTweetCount - lastIgnoredCount) / (double)secondDelay
                 );
             }
         }

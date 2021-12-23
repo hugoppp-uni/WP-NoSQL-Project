@@ -2,6 +2,7 @@
 
 public record Stats
 {
-    public int TotalTweetCount { get; set; }
+    public int ReceiveCount { get; set; }
     public int FilteredTweetCount { get; set; }
+    public int IgnoredTweetCount { get; set; }
 }
