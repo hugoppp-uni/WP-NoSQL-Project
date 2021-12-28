@@ -1,4 +1,5 @@
-﻿using Neo4jClient;
+﻿using Neo4j.Driver;
+using Neo4jClient;
 using Neo4jClient.Cypher;
 using Tweetinvi.Models.V2;
 
@@ -73,6 +74,29 @@ public class Neo4JDataAccess
 
         //then relate domains, entities and tweets
         foreach (var annotation in tweetV2ContextAnnotations)
+        {
+            //https://neo4j.com/docs/java-reference/current/transaction-management/#transactions-deadlocks
+            const int maxRetryCount = 3;
+
+            for (int retryCount = 0;; retryCount++)
+            {
+                try
+                {
+                    await Relate(annotation);
+                    break;
+                }
+                catch (ClientException e) when (e.Code == "Neo.TransientError.Transaction.DeadlockDetected")
+                {
+                    if (retryCount >= maxRetryCount)
+                        throw;
+
+                    TimeSpan backoff = TimeSpan.FromMilliseconds(5);
+                    await Task.Delay(backoff);
+                }
+            }
+        }
+
+        async Task Relate(TweetContextAnnotationV2 annotation)
         {
             await _graphClient.Cypher
                 .Match("(tweet:Tweet {Id: $p_tweetId})").WithParam("p_tweetId", tweetId)
