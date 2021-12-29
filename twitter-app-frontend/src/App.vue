@@ -1,7 +1,12 @@
 <template>
   <div id="app">
-    <img alt="Twitter logo" src="./assets/twitter_logo.png">
-    <StartPage msg="Twitter Hashtag Lookup App"/>
+    <img
+        alt="Twitter logo"
+        src="./assets/twitter_logo.png"
+    contain
+    height="130px"
+    width="130px">
+    <StartPage/>
   </div>
 </template>
 

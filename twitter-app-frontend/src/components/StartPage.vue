@@ -1,28 +1,49 @@
 <template>
   <div class="hello">
-    <h1>{{ msg }}</h1>
-    <h3> Hashtag Search</h3>
+    <h1>Twitter Hashtag Lookup App</h1>
+    <h3>Hashtag Search</h3>
     <div>
       <input type="text" placeholder="Hashtag or interest" v-model="hashtagInput" />
       <button @click="searchHashtag">Search</button>
+    </div>
+    <div v-if=userInputReceived>
+      Temp Log:
+      <br>
+      {{hashtagInput}}
+      <br>
+    {{apiCallFoo}}
+      <br>
     </div>
   </div>
 </template>
 
 <script>
+import axios from 'axios'
+
 export default {
   name: 'StartPage',
   props: {
     msg: String
   },
+  computed: {
+    userInputReceived: function (){ //Tmp function
+      return (this.hashtagInput.length > 1)
+    }
+  },
   data() {
     return {
       hashtagInput: "",
+      apiCallFoo: ""
     };
   },
   methods: {
     searchHashtag() {
-      console.log(this.hashtagInput); // temporary
+      axios
+          .get('https://jsonplaceholder.typicode.com/todos/1')
+          .then(res => {
+            this.apiCallFoo = res.data;
+          })
+
     },
   }
 }
