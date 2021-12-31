@@ -25,12 +25,12 @@ public class HashtagController : ControllerBase
         if (string.IsNullOrWhiteSpace(hashtag))
             return BadRequest();
 
-        string date = DateTime.Today.DateOnlyXDaysAgo(lastDays);
+        DateTime? fromDate = GetDateXDaysAgo(lastDays);
 
         var getTopics = _neo4J.Cypher.Read
             .Match("(h:Hashtag)-[:USED_IN]->(t:Tweet)<-[:USED_IN]-(h2:Hashtag)")
             .Where("h.Name = $p_name").WithParam("p_name", hashtag)
-            .AndWhereIf(lastDays.HasValue, "t.Date > date($p_date)").WithParam("p_date", date)
+            .AndWhereIf(lastDays.HasValue, "t.Date > $p_date").WithParam("p_date", fromDate)
             .AndWhereIf(language is not null, "t.Lang = $lang").WithParam("lang", language)
             .With("count(t) AS cnt, h2")
             .Return((h2, cnt) => new { Hashtag = h2.As<Hashtag>().Name })
@@ -65,14 +65,18 @@ public class HashtagController : ControllerBase
 
     [Route("top/{count:int?}")]
     [HttpGet]
-    public async Task<ActionResult> GetTop(int count = 10, string? language = null)
+    public async Task<ActionResult> GetTop(int count = 10, string? language = null, int? lastDays = null)
     {
         if (count < 0 || count > MaxResultCount)
             return BadRequest();
 
+        DateTime? fromDate = GetDateXDaysAgo(lastDays);
+
         var getHashtags = _neo4J.Cypher.Read
             .Match("(h:Hashtag)-[:USED_IN]->(t:Tweet) ")
-            .WhereIf(language is not null, "t.Lang = $lang").WithParam("lang", language)
+            .Where("true") //needed to allow for AND without prior where
+            .AndWhereIf(language is not null, "t.Lang = $p_lang").WithParam("p_lang", language)
+            .AndWhereIf(lastDays.HasValue, "t.Date > $p_date").WithParam("p_date", fromDate)
             .With("h, count(t) AS cnt")
             .Return((h, cnt) => new { Hashtag = h.As<Hashtag>().Name })
             .OrderByDescending("cnt")
@@ -81,5 +85,10 @@ public class HashtagController : ControllerBase
         var hashtags = await getHashtags.ResultsAsync;
 
         return Ok(hashtags);
+    }
+
+    private static DateTime? GetDateXDaysAgo(int? lastDays)
+    {
+        return lastDays is null ? null : DateTime.Today.AddDays(-1 * lastDays.Value);
     }
 }

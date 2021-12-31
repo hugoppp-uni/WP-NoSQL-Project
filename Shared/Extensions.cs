@@ -65,11 +65,4 @@ public static class Extensions
         return mongoCollection;
     }
 
-    public static DateOnly DateOnlyXDaysAgo(this DateTime date, int x) => DateOnly.FromDateTime(date).AddDays(-1 * x);
-
-    public static string DateOnlyXDaysAgo(this DateTime date, int? x)
-    {
-        return x is null ? "" : DateTime.Today.DateOnlyXDaysAgo(x.Value).ToString();
-    }
-
 }

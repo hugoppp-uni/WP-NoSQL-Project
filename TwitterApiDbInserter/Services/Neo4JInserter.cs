@@ -42,7 +42,7 @@ public class Neo4JInserter
             Id = tweetV2.Id,
             Lang = tweetV2.Lang,
             Sensitive = tweetV2.PossiblySensitive,
-            Date = tweetV2.CreatedAt.Date, // not correct when retweet, but we don't care, the retweet date is close enough
+            Date = tweetV2.CreatedAt.Date
         });
 
         if (tweetV2.ContextAnnotations is not null)
