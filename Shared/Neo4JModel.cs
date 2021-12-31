@@ -51,8 +51,6 @@ public record Entity
 {
     public string Name { get; set; }
 
-    public string Id { get; set; }
-
     public Entity()
     {
     }
@@ -60,7 +58,6 @@ public record Entity
     public Entity(TweetContextAnnotationEntityV2 entity)
     {
         Name = entity.Name;
-        Id = entity.Id;
     }
 
 }

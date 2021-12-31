@@ -111,8 +111,7 @@ public class Neo4JDataAccess
     private Task InsertAnnotationsEntityIfNotExists(Entity entity)
     {
         ICypherFluentQuery cypherFluentQuery = _graphClient.Cypher
-            .Merge("(e:Entity {Id: $Id})")
-            .OnCreate().Set("e.Name = $Name")
+            .Merge("(e:Entity {Name: $Name})")
             .WithParams(entity);
         return cypherFluentQuery
             .ExecuteWithoutResultsAsync();
