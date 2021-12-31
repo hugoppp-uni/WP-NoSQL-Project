@@ -14,8 +14,6 @@ public record Tweet
     [Neo4jDateTime] public DateTime Date { get; set; }
 
     public string? AuthorId { get; set; }
-
-    public bool IsCreatedFromRetweet { get; set; }
 }
 
 public record Hashtag

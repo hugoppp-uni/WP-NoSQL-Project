@@ -40,7 +40,6 @@ public class Neo4JInserter
         {
             AuthorId = tweetV2.AuthorId,
             Id = tweetV2.Id,
-            IsCreatedFromRetweet = false,
             Lang = tweetV2.Lang,
             Sensitive = tweetV2.PossiblySensitive,
             Date = tweetV2.CreatedAt.Date, // not correct when retweet, but we don't care, the retweet date is close enough
