@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Neo4jClient;
+using Neo4jClient.Cypher;
 using Shared;
 
 namespace Api.Controllers;
@@ -25,13 +26,11 @@ public class HashtagController : ControllerBase
         if (string.IsNullOrWhiteSpace(hashtag))
             return BadRequest();
 
-        DateTime? fromDate = GetDateXDaysAgo(lastDays);
-
         var getTopics = _neo4J.Cypher.Read
             .Match("(h:Hashtag)-[:USED_IN]->(t:Tweet)<-[:USED_IN]-(h2:Hashtag)")
             .Where("h.Name = $p_name").WithParam("p_name", hashtag)
-            .AndWhereIf(lastDays.HasValue, "t.Date > $p_date").WithParam("p_date", fromDate)
-            .AndWhereIf(language is not null, "t.Lang = $lang").WithParam("lang", language)
+            .AndWhereDateTimeInLastDays("t.Date", lastDays)
+            .AndWhereLangIs("t.Lang", language)
             .With("count(t) AS cnt, h2")
             .Return((h2, cnt) => new { Hashtag = h2.As<Hashtag>().Name })
             .OrderByDescending("cnt")
@@ -53,7 +52,8 @@ public class HashtagController : ControllerBase
             .Match("(h:Hashtag)")
             .Where((Hashtag h) => h.Name == hashtag)
             .Match("(h)-[:USED_IN]->(t:Tweet)<-[:MENTIONED_IN]-(e:Entity)")
-            .WhereIf(language is not null, "t.Lang = $lang").WithParam("lang", language)
+            .Where("true") //needed to allow for AND without prior where
+            .AndWhereLangIs("t.Lang", language)
             .With("count(t) AS cnt, e")
             .Return((e, cnt) => new { Topic = e.As<Entity>().Name })
             .OrderByDescending("cnt")
@@ -70,13 +70,11 @@ public class HashtagController : ControllerBase
         if (count < 0 || count > MaxResultCount)
             return BadRequest();
 
-        DateTime? fromDate = GetDateXDaysAgo(lastDays);
-
         var getHashtags = _neo4J.Cypher.Read
             .Match("(h:Hashtag)-[:USED_IN]->(t:Tweet) ")
             .Where("true") //needed to allow for AND without prior where
-            .AndWhereIf(language is not null, "t.Lang = $p_lang").WithParam("p_lang", language)
-            .AndWhereIf(lastDays.HasValue, "t.Date > $p_date").WithParam("p_date", fromDate)
+            .AndWhereLangIs("t.Lang", language)
+            .AndWhereDateTimeInLastDays("t.Date", lastDays)
             .With("h, count(t) AS cnt")
             .Return((h, cnt) => new { Hashtag = h.As<Hashtag>().Name })
             .OrderByDescending("cnt")
@@ -87,8 +85,23 @@ public class HashtagController : ControllerBase
         return Ok(hashtags);
     }
 
+}
+
+public static class Neo4jExtension
+{
     private static DateTime? GetDateXDaysAgo(int? lastDays)
     {
         return lastDays is null ? null : DateTime.Today.AddDays(-1 * lastDays.Value);
+    }
+
+    public static ICypherFluentQuery AndWhereDateTimeInLastDays(this ICypherFluentQuery query, string property, int? lastDays)
+    {
+        DateTime? fromDate = GetDateXDaysAgo(lastDays);
+        return query.AndWhereIf(lastDays.HasValue, property + " > $p_date").WithParam("p_date", fromDate);
+    }
+
+    public static ICypherFluentQuery AndWhereLangIs(this ICypherFluentQuery query, string property, string? language)
+    {
+        return query.AndWhereIf(language is not null, property + " = $p_lang").WithParam("p_lang", language);
     }
 }
