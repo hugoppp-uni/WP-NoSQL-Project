@@ -39,7 +39,7 @@ export default {
   methods: {
     searchHashtag() {
       axios
-          .get('https://jsonplaceholder.typicode.com/todos/1')
+          .get('http://localhost:5038/Hashtag/top/10?language=de')
           .then(res => {
             this.apiCallFoo = res.data;
           })

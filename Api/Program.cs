@@ -18,7 +18,6 @@ builder.Services.AddSingleton(ConnectionCreator.Mongo());
 //add APIs
 builder.Services.AddSingleton(static (services) =>
     ConnectionCreator.TwitterApi(services.GetRequiredService<IConfiguration>()));
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -26,6 +25,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 }
 
 app.UseAuthorization();
