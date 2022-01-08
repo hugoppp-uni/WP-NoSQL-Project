@@ -2,15 +2,15 @@
   <v-container>
     <v-card dir style="margin: auto">
 
-      <v-card-title class="justify-center display-1 font-weight-bold mb-3"
+      <v-card-title class="justify-center display-1 font-weight-bold mb-0"
       >Settings
       </v-card-title
       >
-      <v-card-text class="text-left subtitle-1"
+      <v-card-text class="text-left subtitle-1 mb-0 pb-0"
       > Before you search for Hashtags please enter some basic settings.
       </v-card-text>
       <v-select
-          class="pa-0 pl-4"
+          class="pl-4 mb-0 pb-0 mr-5"
           v-model="userInput.selectedLanguage"
           :items="languageOptions"
           :menu-props="{ top: true, offsetY: true }"
@@ -23,7 +23,7 @@
           v-slot="{ errors }"
       >
         <v-text-field
-            class="pa-0 pl-4"
+            class="pl-4 mb-0 pb-0 mr-5"
             v-model="userInput.topCount"
             label="How many trending Hashtags?"
             hint="Must be a positive integer"
@@ -37,7 +37,7 @@
           v-slot="{ errors }"
       >
         <v-text-field
-            class="pa-0 pl-4"
+            class="pl-4 mb-1 pb-0 mr-5"
             v-model="userInput.lastDays"
             label="How many days into the past?"
             hint="Must be a positive integer"
@@ -45,6 +45,7 @@
             @change="publishUpdatedSettings()"
         ></v-text-field>
       </validation-provider>
+
     </v-card>
   </v-container>
 </template>

@@ -9,15 +9,7 @@
       >
         Show Similar Hashtags
       </v-btn>
-    </div>
-    <v-text-field
-        class="pa-0 pl-4"
-        v-model="selectedHashtag"
-        label="Your interesting Hashtag"
-        counter="20"
-        maxlength="20"
-        hint="Must be a single word"
-    ></v-text-field>
+<!--    Similar Hashtags section:-->
     <v-card
         v-if="similarHashtagsNotEmpty"
         class="mx-auto"
@@ -39,6 +31,47 @@
         </v-list-item-group>
       </v-list>
     </v-card>
+      <div class="text-center">
+        <v-btn
+            class="ma-2"
+            outlined
+            color="white"
+            @click="getTopicsOfHashtags"
+        >
+          Show Topics of Hashtag
+        </v-btn>
+      </div>
+    </div>
+    <!--    Topics of Hashtags section:-->
+    <v-card
+        v-if="this.topicsOfHashtagsNotEmpty"
+        class="mx-auto"
+        max-width="300"
+        tile
+    >
+      <v-list rounded>
+        <v-list-item-group
+            color="primary"
+        >
+          <v-list-item
+              v-for="(item, index) in topicOfHashtagsResult"
+              :key="index"
+          >
+            <v-list-item-content>
+              <v-list-item-title v-text="item.topic"></v-list-item-title>
+            </v-list-item-content>
+          </v-list-item>
+        </v-list-item-group>
+      </v-list>
+    </v-card>
+    <v-text-field
+        class="pl-4 pr-4"
+        v-model="selectedHashtag"
+        label="Your interesting Hashtag"
+        counter="20"
+        maxlength="20"
+        hint="Must be a single word"
+    ></v-text-field>
   </v-container>
 </template>
 
@@ -54,7 +87,6 @@ export default {
     eventBus.$on('hashtagSelected', (param) => {
       console.log('Hashtag received: ' + param)
       this.selectedHashtag = param
-      this.getSimilarHashtags()
     })
     eventBus.$on('userInputUpdated', (param) => {
       console.log('Lang received: ' + param.selectedLanguage)
@@ -70,6 +102,9 @@ export default {
   computed: {
     similarHashtagsNotEmpty: function () {
       return (this.similarHashtagsResult.length > 1)
+    },
+    topicsOfHashtagsNotEmpty: function () {
+      return (this.topicOfHashtagsResult.length > 1)
     }
   },
   data: function () {
@@ -80,9 +115,12 @@ export default {
       // input Data from input field or Top Hashtags:
       selectedHashtag: '',
 
-      // Api Calls:
+      // Api Call Similar Hashtags:
       defaultSimilarHashtagUrl: 'http://localhost:5038/Hashtag/',
-      similarHashtagsResult: ''
+      similarHashtagsResult: '',
+
+      // Api Call Topics of Hashtag:
+      topicOfHashtagsResult: ''
     };
   },
   methods: {
@@ -96,13 +134,24 @@ export default {
           .then(res => {
             this.similarHashtagsResult = res.data;
             console.log('Api call for: ' + this.selectedHashtag)
-            console.log('API response received ')
+            console.log('API response for similar hashtags received ')
           });
-
+    },
+    getTopicsOfHashtags() {
+      let requestUrl = this.createTopicsOfHashtagUrl()
+      if (requestUrl === this.defaultSimilarHashtagUrl) {
+        return
+      }
+      axios
+          .get(requestUrl)
+          .then(res => {
+            this.topicOfHashtagsResult = res.data;
+            console.log('Api call for: ' + this.selectedHashtag)
+            console.log('API response for topics received ')
+          });
     },
     createSimilarHashtagUrl() {
       let requestUrl = this.defaultSimilarHashtagUrl;
-      // Stop if Hashtag is empty:
       if (this.selectedHashtag === '') {
         console.log("No Hashtag selected!!!!!")
         return requestUrl
@@ -125,6 +174,23 @@ export default {
           requestUrl += '?';
         }
         requestUrl += 'lastDays=' + this.lastDays
+      }
+      console.log("Request URL: " + requestUrl)
+      return requestUrl;
+    },
+    createTopicsOfHashtagUrl() {
+      let requestUrl = this.defaultSimilarHashtagUrl;
+      // Stop if Hashtag is empty:
+      if (this.selectedHashtag === '') {
+        console.log("No Hashtag selected!!!!!")
+        return requestUrl
+      }
+      // append selected Hashtag:
+      requestUrl += this.selectedHashtag + '/topics'
+
+      // Append selected language:
+      if (this.selectedLanguage !== undefined && this.selectedLanguage !== '' && this.selectedLanguage !== 'al') {
+        requestUrl += '?language=' + this.selectedLanguage
       }
       console.log("Request URL: " + requestUrl)
       return requestUrl;
