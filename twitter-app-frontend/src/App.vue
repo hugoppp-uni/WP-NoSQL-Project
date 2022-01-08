@@ -20,15 +20,14 @@
 
     <v-main>
       <v-row>
-<!--        Layout: Settings for User on Left Side, Query Results in Center and further information e.g. embedded Tweets on the right-->
-      <v-col>
-        <ApiSettings/>
-      </v-col>
         <v-col>
-          <QueryResult/>
+          <ApiSettings/>
         </v-col>
         <v-col>
-          <OptionalResult/>
+          <TrendingHashtags/>
+        </v-col>
+        <v-col>
+          <SimilarHashtags/>
         </v-col>
       </v-row>
     </v-main>
@@ -37,16 +36,16 @@
 
 <script>
 import ApiSettings from './components/ApiSettings';
-import QueryResult from "./components/QueryResult";
-import OptionalResult from "./components/OptionalResult";
+import TrendingHashtags from "./components/TrendingHashtags";
+import SimilarHashtags from "./components/SimilarHashtags";
 
 export default {
   name: 'App',
 
   components: {
     ApiSettings: ApiSettings,
-    QueryResult: QueryResult,
-    OptionalResult: OptionalResult
+    TrendingHashtags: TrendingHashtags,
+    SimilarHashtags: SimilarHashtags
   },
 
   data: () => ({
